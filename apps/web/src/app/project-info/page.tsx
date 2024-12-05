@@ -49,7 +49,12 @@ export default function ProjectPage() {
     }
   }, [isGitRepo]);
 
-  // Load saved states when component mounts or when project path changes
+  // Load saved states when component mounts
+  useEffect(() => {
+    loadSavedStates();
+  }, []);
+
+  // Also load saved states when project path changes
   useEffect(() => {
     if (projectPath) {
       loadSavedStates();
@@ -59,6 +64,7 @@ export default function ProjectPage() {
   const loadSavedStates = async () => {
     try {
       const states = await apiClient.listProjectSaves("initial");
+      console.log('Loaded saved states:', states);
       setSavedStates(states);
     } catch (error) {
       console.error('Failed to load saved states:', error);
@@ -341,7 +347,7 @@ export default function ProjectPage() {
                   (isLoading || savedStates.length === 0) ? 'opacity-50 cursor-not-allowed' : ''
                 }`}
               >
-                Load State
+                Load State ({savedStates.length})
               </button>
             </div>
           </div>

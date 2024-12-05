@@ -1,183 +1,251 @@
-import Database from 'better-sqlite3';
-import fs from 'fs/promises';
+import sqlite3 from 'sqlite3';
 import path from 'path';
-import { Project, ProjectDetails, ProjectWithDetails, ChatMessage, ProjectDetailsUpdate } from '../types/project';
+import fs from 'fs/promises';
+import { ProjectWithDetails, DatabaseRow, ChatMessage, ProjectSave } from '../types/project';
 
-interface ProjectRow {
-    id: string;
-    name: string;
-    path: string;
-    description: string;
-    git_repo: string | null;
-    system_prompt: string;
-    status: string;
-    created_at: string;
-    updated_at: string;
-    details_name: string | null;
-    details_description: string | null;
-    details_stack: string | null;
-    status_name: 'complete' | 'incomplete';
-    status_description: 'complete' | 'incomplete';
-    status_stack: 'complete' | 'incomplete';
-    details_created_at: string;
-    details_updated_at: string;
+interface Database {
+    run(sql: string, params?: unknown[]): Promise<void>;
+    get(sql: string, params?: unknown[]): Promise<DatabaseRow>;
+    all(sql: string, params?: unknown[]): Promise<DatabaseRow[]>;
+    exec(sql: string): Promise<void>;
 }
 
-export class DatabaseService {
-    private db: Database.Database;
-    private static instance: DatabaseService;
+class DatabaseService {
+    private db: Database | null = null;
 
-    private constructor() {
+    async initialize() {
+        if (this.db) {
+            return;
+        }
+
         // Create db directory if it doesn't exist
-        const dbDir = path.join(__dirname, '..', 'db');
-        fs.mkdir(dbDir, { recursive: true }).catch(console.error);
+        const dbDir = path.join(process.cwd(), 'db');
+        await fs.mkdir(dbDir, { recursive: true });
 
-        const dbPath = path.join(dbDir, 'neuroforge.db');
-        this.db = new Database(dbPath);
-        this.db.pragma('foreign_keys = ON');
-        this.initializeDatabase();
+        // Initialize database
+        this.db = await this.openDatabase(path.join(dbDir, 'neuroforge.db'));
+
+        // Enable foreign keys
+        await this.db.run('PRAGMA foreign_keys = ON');
+
+        // Load and execute schema
+        const schema = await fs.readFile(path.join(process.cwd(), 'src', 'db', 'schema.sql'), 'utf-8');
+        await this.db.exec(schema);
+
+        console.log('Database initialized successfully');
     }
 
-    public static getInstance(): DatabaseService {
-        if (!DatabaseService.instance) {
-            DatabaseService.instance = new DatabaseService();
+    private openDatabase(filename: string): Promise<Database> {
+        return new Promise((resolve, reject) => {
+            const db = new sqlite3.Database(filename, (err) => {
+                if (err) {
+                    reject(err);
+                    return;
+                }
+
+                // Wrap database methods in promises
+                const wrappedDb: Database = {
+                    run: (sql: string, params: unknown[] = []) => {
+                        return new Promise((resolve, reject) => {
+                            db.run(sql, params, (err) => {
+                                if (err) reject(err);
+                                else resolve();
+                            });
+                        });
+                    },
+                    get: (sql: string, params: unknown[] = []) => {
+                        return new Promise((resolve, reject) => {
+                            db.get(sql, params, (err, row) => {
+                                if (err) reject(err);
+                                else resolve(row as DatabaseRow);
+                            });
+                        });
+                    },
+                    all: (sql: string, params: unknown[] = []) => {
+                        return new Promise((resolve, reject) => {
+                            db.all(sql, params, (err, rows) => {
+                                if (err) reject(err);
+                                else resolve(rows as DatabaseRow[]);
+                            });
+                        });
+                    },
+                    exec: (sql: string) => {
+                        return new Promise((resolve, reject) => {
+                            db.exec(sql, (err) => {
+                                if (err) reject(err);
+                                else resolve();
+                            });
+                        });
+                    }
+                };
+
+                resolve(wrappedDb);
+            });
+        });
+    }
+
+    async createProject(id: string, name: string, projectPath: string, description?: string, gitRepo?: string) {
+        if (!this.db) {
+            throw new Error('Database not initialized');
         }
-        return DatabaseService.instance;
+
+        await this.db.run(
+            'INSERT INTO projects (id, name, path, description, git_repo) VALUES (?, ?, ?, ?, ?)',
+            [id, name, projectPath, description || null, gitRepo || null]
+        );
     }
 
-    private async initializeDatabase() {
-        try {
-            // Read schema.sql
-            const schemaPath = path.join(__dirname, '..', 'db', 'schema.sql');
-            const schema = await fs.readFile(schemaPath, 'utf-8');
-            
-            // Execute schema as a transaction
-            this.db.exec(schema);
-
-            console.log('Database initialized successfully');
-        } catch (error) {
-            console.error('Failed to initialize database:', error);
-            throw error;
+    async getProjectDetails(projectId: string): Promise<ProjectWithDetails | null> {
+        if (!this.db) {
+            throw new Error('Database not initialized');
         }
-    }
 
-    // Project operations
-    public createProject(id: string, name: string, projectPath: string, description: string, gitRepo?: string): Project {
-        const stmt = this.db.prepare(`
-            INSERT INTO projects (id, name, path, description, git_repo, status)
-            VALUES (?, ?, ?, ?, ?, 'defining')
-            RETURNING *
-        `);
-        const project = stmt.get(id, name, projectPath, description, gitRepo || null) as Project;
+        const project = await this.db.get(
+            'SELECT * FROM projects WHERE id = ?',
+            [projectId]
+        );
 
-        // Initialize project details
-        const detailsStmt = this.db.prepare(`
-            INSERT INTO project_details (project_id)
-            VALUES (?)
-            RETURNING *
-        `);
-        detailsStmt.run(id);
-
-        return project;
-    }
-
-    public updateProjectDetails(projectId: string, details: ProjectDetailsUpdate): ProjectDetails {
-        const stmt = this.db.prepare(`
-            UPDATE project_details
-            SET 
-                name = COALESCE(?, name),
-                description = COALESCE(?, description),
-                stack = COALESCE(?, stack),
-                status_name = COALESCE(?, status_name),
-                status_description = COALESCE(?, status_description),
-                status_stack = COALESCE(?, status_stack)
-            WHERE project_id = ?
-            RETURNING *
-        `);
-
-        return stmt.get(
-            details.name,
-            details.description,
-            details.stack,
-            details.status_name,
-            details.status_description,
-            details.status_stack,
-            projectId
-        ) as ProjectDetails;
-    }
-
-    public getProjectDetails(projectId: string): ProjectWithDetails | null {
-        const stmt = this.db.prepare(`
-            SELECT 
-                p.*,
-                pd.name as details_name,
-                pd.description as details_description,
-                pd.stack as details_stack,
-                pd.status_name,
-                pd.status_description,
-                pd.status_stack,
-                pd.created_at as details_created_at,
-                pd.updated_at as details_updated_at
-            FROM projects p
-            LEFT JOIN project_details pd ON p.id = pd.project_id
-            WHERE p.id = ?
-        `);
-
-        const row = stmt.get(projectId) as ProjectRow | undefined;
-        if (!row) return null;
+        if (!project) {
+            return null;
+        }
 
         return {
-            id: row.id,
-            name: row.name,
-            path: row.path,
-            description: row.description,
-            git_repo: row.git_repo,
-            system_prompt: row.system_prompt,
-            status: row.status,
-            created_at: new Date(row.created_at),
-            updated_at: new Date(row.updated_at),
+            id: project.id as string,
+            name: project.name as string,
+            path: project.path as string,
+            description: project.description as string | null,
+            git_repo: project.git_repo as string | null,
             details: {
-                project_id: row.id,
-                name: row.details_name,
-                description: row.details_description,
-                stack: row.details_stack,
-                status_name: row.status_name,
-                status_description: row.status_description,
-                status_stack: row.status_stack,
-                created_at: new Date(row.details_created_at),
-                updated_at: new Date(row.details_updated_at)
+                name: project.name as string,
+                description: project.description as string | null,
+                stack: null,
+                status: {
+                    name: 'incomplete',
+                    description: 'incomplete',
+                    stack: 'incomplete'
+                }
             }
         };
     }
 
-    public deleteProject(projectId: string): void {
-        const stmt = this.db.prepare('DELETE FROM projects WHERE id = ?');
-        stmt.run(projectId);
+    async updateProjectDetails(projectId: string, updates: Partial<ProjectWithDetails>) {
+        if (!this.db) {
+            throw new Error('Database not initialized');
+        }
+
+        const setClauses: string[] = [];
+        const values: unknown[] = [];
+
+        if (updates.name !== undefined) {
+            setClauses.push('name = ?');
+            values.push(updates.name);
+        }
+        if (updates.description !== undefined) {
+            setClauses.push('description = ?');
+            values.push(updates.description);
+        }
+        if (updates.git_repo !== undefined) {
+            setClauses.push('git_repo = ?');
+            values.push(updates.git_repo);
+        }
+
+        if (setClauses.length === 0) {
+            return;
+        }
+
+        values.push(projectId);
+
+        await this.db.run(
+            `UPDATE projects SET ${setClauses.join(', ')} WHERE id = ?`,
+            values
+        );
     }
 
-    // Chat message operations
-    public saveChatMessage(projectId: string, role: string, content: string): ChatMessage {
-        const stmt = this.db.prepare(`
-            INSERT INTO chat_messages (project_id, role, content)
-            VALUES (?, ?, ?)
-            RETURNING *
-        `);
-        return stmt.get(projectId, role, content) as ChatMessage;
+    async deleteProject(projectId: string) {
+        if (!this.db) {
+            throw new Error('Database not initialized');
+        }
+
+        // First delete related records
+        await this.db.run('DELETE FROM chat_messages WHERE project_id = ?', [projectId]);
+        await this.db.run('DELETE FROM project_saves WHERE project_id = ?', [projectId]);
+
+        // Then delete the project
+        await this.db.run('DELETE FROM projects WHERE id = ?', [projectId]);
     }
 
-    public getChatMessages(projectId: string): ChatMessage[] {
-        const stmt = this.db.prepare(`
-            SELECT * FROM chat_messages
-            WHERE project_id = ?
-            ORDER BY timestamp ASC
-        `);
-        return stmt.all(projectId) as ChatMessage[];
+    async saveChatMessage(projectId: string, role: string, content: string) {
+        if (!this.db) {
+            throw new Error('Database not initialized');
+        }
+
+        await this.db.run(
+            'INSERT INTO chat_messages (project_id, role, content) VALUES (?, ?, ?)',
+            [projectId, role, content]
+        );
     }
 
-    public clearChatHistory(projectId: string): void {
-        const stmt = this.db.prepare('DELETE FROM chat_messages WHERE project_id = ?');
-        stmt.run(projectId);
+    async getChatMessages(projectId: string): Promise<ChatMessage[]> {
+        if (!this.db) {
+            throw new Error('Database not initialized');
+        }
+
+        const messages = await this.db.all(
+            'SELECT * FROM chat_messages WHERE project_id = ? ORDER BY timestamp ASC',
+            [projectId]
+        );
+
+        return messages.map(msg => ({
+            role: msg.role as string,
+            content: msg.content as string,
+            timestamp: new Date(msg.timestamp as string)
+        }));
+    }
+
+    async clearChatHistory(projectId: string) {
+        if (!this.db) {
+            throw new Error('Database not initialized');
+        }
+
+        await this.db.run('DELETE FROM chat_messages WHERE project_id = ?', [projectId]);
+    }
+
+    async saveProjectState(projectId: string, name: string, data: string) {
+        if (!this.db) {
+            throw new Error('Database not initialized');
+        }
+
+        await this.db.run(
+            'INSERT INTO project_saves (project_id, name, data) VALUES (?, ?, ?)',
+            [projectId, name, data]
+        );
+    }
+
+    async loadProjectState(projectId: string, name: string): Promise<string | null> {
+        if (!this.db) {
+            throw new Error('Database not initialized');
+        }
+
+        const save = await this.db.get(
+            'SELECT data FROM project_saves WHERE project_id = ? AND name = ?',
+            [projectId, name]
+        );
+
+        return save ? (save.data as string) : null;
+    }
+
+    async listProjectSaves(projectId: string): Promise<string[]> {
+        if (!this.db) {
+            throw new Error('Database not initialized');
+        }
+
+        const saves = await this.db.all(
+            'SELECT name FROM project_saves WHERE project_id = ? ORDER BY created_at DESC',
+            [projectId]
+        );
+
+        return saves.map(save => save.name as string);
     }
 }
 
-export const dbService = DatabaseService.getInstance();
+export const dbService = new DatabaseService();

@@ -6,7 +6,7 @@ import { AIArchitectService } from './AIArchitect';
 import { dbService } from './DatabaseService';
 import { ProjectWithDetails } from '../types/project';
 
-export class ProjectService {
+class ProjectService {
     private basePath: string;
     private gitService: GitService;
     private aiService: AIArchitectService;
@@ -15,6 +15,31 @@ export class ProjectService {
         this.basePath = basePath;
         this.gitService = new GitService();
         this.aiService = new AIArchitectService();
+    }
+
+    async listProjectSaves(projectId: string): Promise<string[]> {
+        try {
+            const project = await dbService.getProjectDetails(projectId);
+            if (!project) {
+                // Return empty list if project doesn't exist
+                return [];
+            }
+
+            const savesDir = path.join(project.path, '.saves');
+            try {
+                const files = await fs.readdir(savesDir);
+                return files
+                    .filter(file => file.endsWith('.json'))
+                    .map(file => file.replace('.json', ''));
+            } catch (error) {
+                // Directory doesn't exist or can't be read, return empty list
+                return [];
+            }
+        } catch (error) {
+            console.error('Failed to list project saves:', error);
+            // Return empty list for any error
+            return [];
+        }
     }
 
     async createProject(name: string, description: string, gitRepo?: string): Promise<ProjectWithDetails> {
@@ -41,8 +66,8 @@ export class ProjectService {
             const projectId = uuidv4();
 
             // Save project to database
-            dbService.createProject(projectId, name, projectPath, description, gitRepo);
-            const projectDetails = dbService.getProjectDetails(projectId);
+            await dbService.createProject(projectId, name, projectPath, description, gitRepo);
+            const projectDetails = await dbService.getProjectDetails(projectId);
 
             if (!projectDetails) {
                 throw new Error('Failed to create project details');
@@ -59,14 +84,14 @@ export class ProjectService {
     async resetProject(projectId: string): Promise<void> {
         try {
             // Try to get project from database
-            const project = dbService.getProjectDetails(projectId);
+            const project = await dbService.getProjectDetails(projectId);
             let projectPath = '';
 
             if (project) {
                 projectPath = project.path;
                 // Clear database records
-                dbService.deleteProject(projectId);
-                dbService.clearChatHistory(projectId);
+                await dbService.deleteProject(projectId);
+                await dbService.clearChatHistory(projectId);
             } else {
                 // If not in database, try to find directory
                 projectPath = path.join(this.basePath, 'test');
@@ -93,7 +118,7 @@ export class ProjectService {
 
     async updateProjectDescription(projectId: string, description: string): Promise<ProjectWithDetails> {
         try {
-            const project = dbService.getProjectDetails(projectId);
+            const project = await dbService.getProjectDetails(projectId);
             if (!project) {
                 throw new Error('Project not found');
             }
@@ -103,9 +128,9 @@ export class ProjectService {
             await fs.writeFile(readmePath, `# ${project.name}\n\n${description}\n`);
 
             // Update database
-            dbService.updateProjectDetails(projectId, { description });
+            await dbService.updateProjectDetails(projectId, { description });
 
-            const updatedProject = dbService.getProjectDetails(projectId);
+            const updatedProject = await dbService.getProjectDetails(projectId);
             if (!updatedProject) {
                 throw new Error('Failed to get updated project details');
             }
@@ -119,15 +144,15 @@ export class ProjectService {
 
     async generateSystemPrompt(projectId: string): Promise<ProjectWithDetails> {
         try {
-            const project = dbService.getProjectDetails(projectId);
+            const project = await dbService.getProjectDetails(projectId);
             if (!project) {
                 throw new Error('Project not found');
             }
 
-            const systemPrompt = await this.aiService.generateSystemPrompt(project.description);
-            dbService.updateProjectDetails(projectId, { description: systemPrompt });
+            const systemPrompt = await this.aiService.generateSystemPrompt(project.description || '');
+            await dbService.updateProjectDetails(projectId, { description: systemPrompt });
 
-            const updatedProject = dbService.getProjectDetails(projectId);
+            const updatedProject = await dbService.getProjectDetails(projectId);
             if (!updatedProject) {
                 throw new Error('Failed to get updated project details');
             }
@@ -139,9 +164,9 @@ export class ProjectService {
         }
     }
 
-    getProject(projectId: string): ProjectWithDetails {
+    async getProject(projectId: string): Promise<ProjectWithDetails> {
         try {
-            const project = dbService.getProjectDetails(projectId);
+            const project = await dbService.getProjectDetails(projectId);
             if (!project) {
                 throw new Error('Project not found');
             }
@@ -154,7 +179,7 @@ export class ProjectService {
 
     async commitProjectChanges(projectId: string, message: string): Promise<void> {
         try {
-            const project = dbService.getProjectDetails(projectId);
+            const project = await dbService.getProjectDetails(projectId);
             if (!project) {
                 throw new Error('Project not found');
             }
@@ -168,7 +193,7 @@ export class ProjectService {
 
     async saveProjectState(projectId: string, saveName: string): Promise<void> {
         try {
-            const project = dbService.getProjectDetails(projectId);
+            const project = await dbService.getProjectDetails(projectId);
             if (!project) {
                 throw new Error('Project not found');
             }
@@ -180,7 +205,7 @@ export class ProjectService {
             // Save project state
             const saveData = {
                 project,
-                messages: dbService.getChatMessages(projectId),
+                messages: await dbService.getChatMessages(projectId),
                 timestamp: new Date()
             };
 
@@ -200,7 +225,7 @@ export class ProjectService {
 
     async loadProjectState(projectId: string, saveName: string): Promise<ProjectWithDetails> {
         try {
-            const project = dbService.getProjectDetails(projectId);
+            const project = await dbService.getProjectDetails(projectId);
             if (!project) {
                 throw new Error('Project not found');
             }
@@ -211,10 +236,10 @@ export class ProjectService {
             const saveData = JSON.parse(saveContent);
 
             // Restore project state in database
-            dbService.deleteProject(projectId);
-            dbService.clearChatHistory(projectId);
+            await dbService.deleteProject(projectId);
+            await dbService.clearChatHistory(projectId);
 
-            dbService.createProject(
+            await dbService.createProject(
                 projectId,
                 saveData.project.name,
                 saveData.project.path,
@@ -224,39 +249,23 @@ export class ProjectService {
 
             // Restore chat messages
             for (const message of saveData.messages) {
-                dbService.saveChatMessage(projectId, message.role, message.content);
+                await dbService.saveChatMessage(projectId, message.role, message.content);
             }
 
             // Checkout git tag
             await this.gitService.checkoutTag(project.path, `save-${saveName}`);
 
-            return dbService.getProjectDetails(projectId) as ProjectWithDetails;
+            const updatedProject = await dbService.getProjectDetails(projectId);
+            if (!updatedProject) {
+                throw new Error('Failed to get updated project details');
+            }
+
+            return updatedProject;
         } catch (error) {
             console.error('Failed to load project state:', error);
             throw error;
         }
     }
-
-    async listProjectSaves(projectId: string): Promise<string[]> {
-        try {
-            const project = dbService.getProjectDetails(projectId);
-            if (!project) {
-                throw new Error('Project not found');
-            }
-
-            const savesDir = path.join(project.path, '.saves');
-            try {
-                const files = await fs.readdir(savesDir);
-                return files
-                    .filter(file => file.endsWith('.json'))
-                    .map(file => file.replace('.json', ''));
-            } catch (error) {
-                // Directory doesn't exist, return empty list
-                return [];
-            }
-        } catch (error) {
-            console.error('Failed to list project saves:', error);
-            throw error;
-        }
-    }
 }
+
+export const projectService = new ProjectService(process.env.BASE_PROJECTS_PATH || path.join(process.cwd(), '../../projects'));

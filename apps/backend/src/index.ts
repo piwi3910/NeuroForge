@@ -1,4 +1,4 @@
-import express, { NextFunction, Request, Response } from 'express';
+import express from 'express';
 import cors from 'cors';
 import swaggerUi from 'swagger-ui-express';
 import swaggerJsdoc from 'swagger-jsdoc';
@@ -7,6 +7,7 @@ import { config } from './config/env';
 import projectRoutes from './routes/project';
 import backlogRoutes from './routes/backlog';
 import filesRoutes from './routes/files';
+import { dbService } from './services/DatabaseService';
 
 // Load environment variables
 dotenv.config();
@@ -60,7 +61,7 @@ app.use('/api/backlog', backlogRoutes);
 app.use('/api/files', filesRoutes);
 
 // Not found handler
-app.use((req: Request, res: Response) => {
+app.use((req: express.Request, res: express.Response) => {
     console.log(`404 - Not Found: ${req.method} ${req.originalUrl}`);
     res.status(404).json({ error: 'Not Found' });
 });
@@ -70,7 +71,7 @@ interface ApiError extends Error {
     status?: number;
 }
 
-app.use((err: ApiError, req: Request, res: Response, _next: NextFunction) => {
+app.use((err: ApiError, req: express.Request, res: express.Response, _next: express.NextFunction) => {
     console.error('Error:', err.message);
     console.error('Stack:', err.stack);
     const status = err.status || 500;
@@ -80,18 +81,18 @@ app.use((err: ApiError, req: Request, res: Response, _next: NextFunction) => {
     });
 });
 
-// Create projects directory if it doesn't exist
-import fs from 'fs';
-import path from 'path';
+// Initialize database and start server
+const startServer = async () => {
+    try {
+        await dbService.initialize();
+        app.listen(config.PORT, () => {
+            console.log(`Server is running on port ${config.PORT}`);
+            console.log(`API Documentation available at http://localhost:${config.PORT}/api-docs`);
+        });
+    } catch (error) {
+        console.error('Failed to start server:', error);
+        process.exit(1);
+    }
+};
 
-const projectsDir = path.join(process.cwd(), '../../projects');
-if (!fs.existsSync(projectsDir)) {
-    fs.mkdirSync(projectsDir, { recursive: true });
-    console.log('Created projects directory:', projectsDir);
-}
-
-// Start server
-app.listen(config.PORT, () => {
-    console.log(`Server is running on port ${config.PORT}`);
-    console.log(`API Documentation available at http://localhost:${config.PORT}/api-docs`);
-});
+startServer();
