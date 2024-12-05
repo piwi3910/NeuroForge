@@ -1,7 +1,10 @@
 import express from 'express';
 import { projectService } from '../services/ProjectService';
+import { AIArchitectService } from '../services/AIArchitect';
+import { dbService } from '../services/DatabaseService';
 
 const router = express.Router();
+const aiArchitect = new AIArchitectService();
 
 /**
  * @swagger
@@ -253,11 +256,28 @@ router.post('/:projectId/chat', async (req, res) => {
     try {
         const { projectId } = req.params;
         const { message } = req.body;
-        const project = await projectService.generateSystemPrompt(projectId);
+
+        // Save user message
+        await dbService.saveChatMessage(projectId, 'user', message);
+
+        // Get AI response
+        const response = await aiArchitect.chat([{
+            role: 'user',
+            content: message
+        }]);
+
+        // Save AI response
+        await dbService.saveChatMessage(projectId, 'assistant', response.message);
+
+        // If AI response includes project details, update them
+        if (response.details) {
+            await projectService.updateProjectDescription(projectId, response.details.description || '');
+        }
+
         res.json({
-            content: "Hello! I'm your AI Architect. Let's define your project together.",
+            content: response.message,
             timestamp: new Date(),
-            details: project
+            details: response.details
         });
     } catch (error) {
         console.error('Failed to chat with AI:', error);
