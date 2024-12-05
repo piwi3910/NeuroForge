@@ -3,9 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "pnpm --filter @neuroforge/web dev",
-    "build": "pnpm --filter @neuroforge/web build",
+    "dev": "concurrently \"pnpm --filter @neuroforge/backend dev\" \"pnpm --filter @neuroforge/web dev\"",
+    "build": "pnpm --filter @neuroforge/shared build && pnpm --filter @neuroforge/backend build && pnpm --filter @neuroforge/web build",
     "start": "pnpm --filter @neuroforge/web start",
     "lint": "pnpm --filter @neuroforge/web lint"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
   }
 }
