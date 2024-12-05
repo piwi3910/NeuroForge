@@ -167,9 +167,10 @@ export default function ProjectPage() {
     }
   };
 
-  const isProjectDefined = projectDetails.status.name === 'complete' && 
-                          projectDetails.status.description === 'complete' && 
-                          projectDetails.status.stack === 'complete';
+  // Check if all required fields are complete
+  const isProjectDefined = projectDetails.status?.name === 'complete' && 
+                          projectDetails.status?.description === 'complete' && 
+                          projectDetails.status?.stack === 'complete';
 
   return (
     <main className="h-[calc(100vh-40px)] bg-[#1e1e1e] p-4 flex flex-col">

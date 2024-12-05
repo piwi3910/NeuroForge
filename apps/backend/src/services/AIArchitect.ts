@@ -64,9 +64,24 @@ export class AIArchitectService {
       // Add new messages to history
       this.messageHistory = [...this.messageHistory, ...messages];
 
+      // Add instructions for JSON response format
+      const jsonInstructions = `
+Please provide your response in valid JSON format with the following structure:
+{
+  "name": "project name or null",
+  "description": "project description or null",
+  "stack": "technology stack or null",
+  "status": {
+    "name": "complete or incomplete",
+    "description": "complete or incomplete",
+    "stack": "complete or incomplete"
+  },
+  "message": "your response message here"
+}`;
+
       // Prepare messages for OpenAI
       const openAiMessages: ChatCompletionMessageParam[] = [
-        { role: "system", content: systemPrompt } as ChatCompletionSystemMessageParam,
+        { role: "system", content: systemPrompt + "\n" + jsonInstructions } as ChatCompletionSystemMessageParam,
         ...this.messageHistory.map(msg => {
           if (msg.role === 'assistant') {
             return { role: 'assistant', content: msg.content } as ChatCompletionAssistantMessageParam;
@@ -82,8 +97,7 @@ export class AIArchitectService {
         model: "gpt-4",
         messages: openAiMessages,
         temperature: 0.7,
-        max_tokens: 1000,
-        response_format: { type: "json_object" }
+        max_tokens: 1000
       });
 
       const response = completion.choices[0]?.message?.content;
@@ -93,8 +107,14 @@ export class AIArchitectService {
 
       console.log('Raw OpenAI response:', response);
 
+      // Find JSON in the response
+      const jsonMatch = response.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        throw new Error('No JSON found in response');
+      }
+
       // Parse the JSON response
-      const parsedResponse = JSON.parse(response);
+      const parsedResponse = JSON.parse(jsonMatch[0]);
       
       // Add AI response to history
       this.messageHistory.push({
