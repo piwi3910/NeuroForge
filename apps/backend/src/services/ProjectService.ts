@@ -54,20 +54,31 @@ export class ProjectService {
 
     async resetProject(projectId: string): Promise<void> {
         try {
+            // Try to get project from database
             const project = dbService.getProjectDetails(projectId);
-            if (!project) {
-                throw new Error('Project not found');
+            let projectPath = '';
+
+            if (project) {
+                projectPath = project.path;
+                // Clear database records
+                dbService.deleteProject(projectId);
+                dbService.clearChatHistory(projectId);
+            } else {
+                // If not in database, try to find directory
+                projectPath = path.join(this.basePath, 'test');
             }
 
-            // Remove project directory
-            if (project.path) {
-                console.log(`Removing directory: ${project.path}`);
-                await fs.rm(project.path, { recursive: true, force: true });
+            // Remove project directory if it exists
+            try {
+                const stats = await fs.stat(projectPath);
+                if (stats.isDirectory()) {
+                    console.log(`Removing directory: ${projectPath}`);
+                    await fs.rm(projectPath, { recursive: true, force: true });
+                }
+            } catch (err) {
+                // Directory doesn't exist, that's fine
+                console.log(`Directory ${projectPath} does not exist`);
             }
-
-            // Clear database records
-            dbService.deleteProject(projectId);
-            dbService.clearChatHistory(projectId);
 
             console.log(`Project reset successfully: ${projectId}`);
         } catch (error) {
