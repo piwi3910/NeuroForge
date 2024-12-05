@@ -19,26 +19,19 @@ class ProjectService {
 
     async listProjectSaves(projectId: string): Promise<string[]> {
         try {
-            const project = await dbService.getProjectDetails(projectId);
-            if (!project) {
-                // Return empty list if project doesn't exist
-                return [];
-            }
-
-            const savesDir = path.join(project.path, '.saves');
-            try {
-                const files = await fs.readdir(savesDir);
-                return files
-                    .filter(file => file.endsWith('.json'))
-                    .map(file => file.replace('.json', ''));
-            } catch (error) {
-                // Directory doesn't exist or can't be read, return empty list
-                return [];
-            }
+            return await dbService.listProjectSaves(projectId);
         } catch (error) {
             console.error('Failed to list project saves:', error);
-            // Return empty list for any error
             return [];
+        }
+    }
+
+    async getTotalSavedProjects(): Promise<number> {
+        try {
+            return await dbService.getAllProjectSaves();
+        } catch (error) {
+            console.error('Failed to get total saved projects:', error);
+            return 0;
         }
     }
 
@@ -198,24 +191,26 @@ class ProjectService {
                 throw new Error('Project not found');
             }
 
-            // Create saves directory if it doesn't exist
-            const savesDir = path.join(project.path, '.saves');
-            await fs.mkdir(savesDir, { recursive: true });
-
-            // Save project state
+            // Get current project state
+            const messages = await dbService.getChatMessages(projectId);
             const saveData = {
                 project,
-                messages: await dbService.getChatMessages(projectId),
+                messages,
                 timestamp: new Date()
             };
 
-            await fs.writeFile(
-                path.join(savesDir, `${saveName}.json`),
-                JSON.stringify(saveData, null, 2)
-            );
+            // Save state to database
+            await dbService.saveProjectState(projectId, saveName, JSON.stringify(saveData));
+
+            // Ensure we have a commit before creating a tag
+            try {
+                await this.gitService.commitChanges(project.path, `Save state: ${saveName}`);
+            } catch (error) {
+                // If there are no changes to commit, that's fine
+                console.log('No changes to commit');
+            }
 
             // Create git tag for the save
-            await this.gitService.commitChanges(project.path, `Save state: ${saveName}`);
             await this.gitService.createTag(project.path, `save-${saveName}`);
         } catch (error) {
             console.error('Failed to save project state:', error);
@@ -230,10 +225,13 @@ class ProjectService {
                 throw new Error('Project not found');
             }
 
-            // Load save file
-            const savePath = path.join(project.path, '.saves', `${saveName}.json`);
-            const saveContent = await fs.readFile(savePath, 'utf-8');
-            const saveData = JSON.parse(saveContent);
+            // Load save data from database
+            const saveData = await dbService.loadProjectState(projectId, saveName);
+            if (!saveData) {
+                throw new Error('Save state not found');
+            }
+
+            const parsedData = JSON.parse(saveData);
 
             // Restore project state in database
             await dbService.deleteProject(projectId);
@@ -241,14 +239,14 @@ class ProjectService {
 
             await dbService.createProject(
                 projectId,
-                saveData.project.name,
-                saveData.project.path,
-                saveData.project.description,
-                saveData.project.git_repo
+                parsedData.project.name,
+                parsedData.project.path,
+                parsedData.project.description,
+                parsedData.project.git_repo
             );
 
             // Restore chat messages
-            for (const message of saveData.messages) {
+            for (const message of parsedData.messages) {
                 await dbService.saveChatMessage(projectId, message.role, message.content);
             }
 

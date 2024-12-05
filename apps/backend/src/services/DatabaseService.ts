@@ -190,6 +190,15 @@ class DatabaseService {
 
         return saves.map(save => save.name);
     }
+
+    async getAllProjectSaves(): Promise<number> {
+        if (!this.em) {
+            throw new Error('Database not initialized');
+        }
+
+        const count = await this.em.count(ProjectSave);
+        return count;
+    }
 }
 
 export const dbService = new DatabaseService();

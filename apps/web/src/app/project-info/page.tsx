@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { ChatMessage, ProjectDetails } from "@/types/api";
-import { apiClient } from "@/services/api";
-import { DirectoryBrowser } from "@/components/DirectoryBrowser";
-import { ConfirmDialog } from "@/components/ConfirmDialog";
-import { Dialog } from "@/components/Dialog";
+import { ChatMessage, ProjectDetails } from "../types/api";
+import { apiClient } from "../services/api";
+import { DirectoryBrowser } from "../components/DirectoryBrowser";
+import { ConfirmDialog } from "../components/ConfirmDialog";
+import { Dialog } from "../components/Dialog";
 
 export default function ProjectPage() {
   const [projectId, setProjectId] = useState<string | null>(null);
@@ -31,8 +31,22 @@ export default function ProjectPage() {
   const [isLoadDialogOpen, setIsLoadDialogOpen] = useState(false);
   const [saveName, setSaveName] = useState("");
   const [savedStates, setSavedStates] = useState<string[]>([]);
+  const [totalSavedProjects, setTotalSavedProjects] = useState(0);
   const chatInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Load total saved projects when component mounts
+  useEffect(() => {
+    const loadTotalSavedProjects = async () => {
+      try {
+        const count = await apiClient.getTotalSavedProjects();
+        setTotalSavedProjects(count);
+      } catch (error) {
+        console.error('Failed to get total saved projects:', error);
+      }
+    };
+    loadTotalSavedProjects();
+  }, []);
 
   // Auto-scroll to bottom when messages change
   const scrollToBottom = () => {
@@ -187,6 +201,8 @@ export default function ProjectPage() {
     try {
       await apiClient.saveProjectState(projectId, saveName);
       await loadSavedStates();
+      const count = await apiClient.getTotalSavedProjects();
+      setTotalSavedProjects(count);
       setIsSaveDialogOpen(false);
       setSaveName("");
     } catch (error) {
@@ -350,12 +366,12 @@ export default function ProjectPage() {
               </button>
               <button
                 onClick={() => setIsLoadDialogOpen(true)}
-                disabled={isLoading || savedStates.length === 0}
+                disabled={isLoading || totalSavedProjects === 0}
                 className={`flex-1 px-3 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 text-sm ${
-                  (isLoading || savedStates.length === 0) ? 'opacity-50 cursor-not-allowed' : ''
+                  (isLoading || totalSavedProjects === 0) ? 'opacity-50 cursor-not-allowed' : ''
                 }`}
               >
-                Load State ({savedStates.length})
+                Load State ({totalSavedProjects})
               </button>
             </div>
           </div>

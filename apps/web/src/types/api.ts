@@ -48,4 +48,5 @@ export interface ApiClient {
     saveProjectState(projectId: string, saveName: string): Promise<void>;
     loadProjectState(projectId: string, saveName: string): Promise<Project>;
     listProjectSaves(projectId: string): Promise<string[]>;
+    getTotalSavedProjects(): Promise<number>;
 }
