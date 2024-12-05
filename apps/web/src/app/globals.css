@@ -12,7 +12,7 @@ body {
   background: rgb(var(--background-rgb));
   margin: 0;
   padding: 0;
-  overflow: hidden;
+  overflow: auto;
 }
 
 /* Custom scrollbar for dark theme */

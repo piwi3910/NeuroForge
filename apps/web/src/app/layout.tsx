@@ -1,22 +1,15 @@
-import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+"use client";
+
 import "./globals.css";
+import { TabLayout } from "../components/TabLayout";
 
-const inter = Inter({ subsets: ["latin"] });
-
-export const metadata: Metadata = {
-  title: "NeuroForge - AI-Powered IDE",
-  description: "A modern web-based IDE with AI capabilities",
-};
-
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className={inter.className}>{children}</body>
+      <body className="bg-[#1e1e1e] text-white">
+        <TabLayout />
+        {children}
+      </body>
     </html>
   );
 }
