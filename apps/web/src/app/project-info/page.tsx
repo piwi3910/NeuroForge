@@ -333,9 +333,9 @@ export default function ProjectPage() {
             <div className="flex gap-2">
               <button
                 onClick={() => setIsSaveDialogOpen(true)}
-                disabled={!isGitRepo || isLoading}
+                disabled={!projectPath || isLoading}
                 className={`flex-1 px-3 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 text-sm ${
-                  (!isGitRepo || isLoading) ? 'opacity-50 cursor-not-allowed' : ''
+                  (!projectPath || isLoading) ? 'opacity-50 cursor-not-allowed' : ''
                 }`}
               >
                 Save State
