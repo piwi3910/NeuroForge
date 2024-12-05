@@ -323,28 +323,26 @@ export default function ProjectPage() {
               </button>
             </div>
 
-            {isGitRepo && (
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setIsSaveDialogOpen(true)}
-                  disabled={isLoading}
-                  className={`flex-1 px-3 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 text-sm ${
-                    isLoading ? 'opacity-50 cursor-not-allowed' : ''
-                  }`}
-                >
-                  Save State
-                </button>
-                <button
-                  onClick={() => setIsLoadDialogOpen(true)}
-                  disabled={isLoading || savedStates.length === 0}
-                  className={`flex-1 px-3 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 text-sm ${
-                    (isLoading || savedStates.length === 0) ? 'opacity-50 cursor-not-allowed' : ''
-                  }`}
-                >
-                  Load State
-                </button>
-              </div>
-            )}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setIsSaveDialogOpen(true)}
+                disabled={!isGitRepo || isLoading}
+                className={`flex-1 px-3 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 text-sm ${
+                  (!isGitRepo || isLoading) ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
+              >
+                Save State
+              </button>
+              <button
+                onClick={() => setIsLoadDialogOpen(true)}
+                disabled={!isGitRepo || isLoading || savedStates.length === 0}
+                className={`flex-1 px-3 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 text-sm ${
+                  (!isGitRepo || isLoading || savedStates.length === 0) ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
+              >
+                Load State
+              </button>
+            </div>
           </div>
 
           <div className="flex-1 bg-[#1e1e1e] rounded p-3 mb-4 overflow-auto">
