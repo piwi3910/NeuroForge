@@ -101,7 +101,7 @@ function KanbanBoard() {
   );
 }
 
-export default function ProjectPage() {
+export default function ProjectManagementPage() {
   return (
     <main className="h-[calc(100vh-40px)] bg-[#1e1e1e]">
       <PanelGroup direction="horizontal" className="h-full">
