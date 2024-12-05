@@ -86,17 +86,28 @@ export class ProjectService {
 
   async resetProject(projectId: string): Promise<void> {
     try {
-      const project = this.getProject(projectId);
-      
-      // Remove project directory
-      if (project.path) {
-        await fs.rm(project.path, { recursive: true, force: true });
-      }
-
       // Clear project from memory
       this.projects.delete(projectId);
       this.chats.delete(projectId);
       this.gitServices.delete(projectId);
+
+      // List all directories in the projects folder
+      const entries = await fs.readdir(this.baseProjectsPath, { withFileTypes: true });
+      const directories = entries.filter(entry => entry.isDirectory());
+
+      // Remove each directory
+      for (const dir of directories) {
+        const dirPath = path.join(this.baseProjectsPath, dir.name);
+        try {
+          await fs.rm(dirPath, { recursive: true, force: true });
+          console.log('Removed directory:', dirPath);
+        } catch (error) {
+          console.error('Error removing directory:', dirPath, error);
+        }
+      }
+
+      // Ensure the base projects directory exists
+      await this.fileSystem.ensureDirectoryExists(this.baseProjectsPath);
 
       console.log('Project reset successfully:', projectId);
     } catch (error) {
