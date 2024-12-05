@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { ChatMessage, ProjectDetails } from "@/types/api";
-import { apiClient } from "@/services/api";
-import { DirectoryBrowser } from "@/components/DirectoryBrowser";
-import { ConfirmDialog } from "@/components/ConfirmDialog";
-import { Dialog } from "@/components/Dialog";
+import { ChatMessage, ProjectDetails } from "../types/api";
+import { apiClient } from "../services/api";
+import { DirectoryBrowser } from "../components/DirectoryBrowser";
+import { ConfirmDialog } from "../components/ConfirmDialog";
+import { Dialog } from "../components/Dialog";
 
 export default function ProjectPage() {
+  const [projectId, setProjectId] = useState<string | null>(null);
   const [projectPath, setProjectPath] = useState("");
   const [gitUrl, setGitUrl] = useState("");
   const [isGitRepo, setIsGitRepo] = useState(false);
@@ -30,8 +31,22 @@ export default function ProjectPage() {
   const [isLoadDialogOpen, setIsLoadDialogOpen] = useState(false);
   const [saveName, setSaveName] = useState("");
   const [savedStates, setSavedStates] = useState<string[]>([]);
+  const [totalSavedProjects, setTotalSavedProjects] = useState(0);
   const chatInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Load total saved projects when component mounts
+  useEffect(() => {
+    const loadTotalSavedProjects = async () => {
+      try {
+        const count = await apiClient.getTotalSavedProjects();
+        setTotalSavedProjects(count);
+      } catch (error) {
+        console.error('Failed to get total saved projects:', error);
+      }
+    };
+    loadTotalSavedProjects();
+  }, []);
 
   // Auto-scroll to bottom when messages change
   const scrollToBottom = () => {
@@ -44,26 +59,22 @@ export default function ProjectPage() {
 
   // Start chat when repository is initialized
   useEffect(() => {
-    if (isGitRepo) {
+    if (isGitRepo && projectId) {
       handleStartChat();
     }
-  }, [isGitRepo]);
+  }, [isGitRepo, projectId]);
 
-  // Load saved states when component mounts
+  // Load saved states when component mounts or project ID changes
   useEffect(() => {
-    loadSavedStates();
-  }, []);
-
-  // Also load saved states when project path changes
-  useEffect(() => {
-    if (projectPath) {
+    if (projectId) {
       loadSavedStates();
     }
-  }, [projectPath]);
+  }, [projectId]);
 
   const loadSavedStates = async () => {
+    if (!projectId) return;
     try {
-      const states = await apiClient.listProjectSaves("initial");
+      const states = await apiClient.listProjectSaves(projectId);
       console.log('Loaded saved states:', states);
       setSavedStates(states);
     } catch (error) {
@@ -72,9 +83,10 @@ export default function ProjectPage() {
   };
 
   const handleStartChat = async () => {
+    if (!projectId) return;
     try {
       setIsLoading(true);
-      const response = await apiClient.chatWithAI("initial", "start");
+      const response = await apiClient.chatWithAI(projectId, "start");
       setMessages([{
         role: "assistant",
         content: response.content,
@@ -101,12 +113,13 @@ export default function ProjectPage() {
   };
 
   const handleReset = async () => {
-    if (!projectPath) return;
+    if (!projectId) return;
 
     setIsLoading(true);
     try {
-      await apiClient.resetProject("initial");
+      await apiClient.resetProject(projectId);
       // Reset all state
+      setProjectId(null);
       setProjectPath("");
       setGitUrl("");
       setIsGitRepo(false);
@@ -137,13 +150,17 @@ export default function ProjectPage() {
 
     setIsLoading(true);
     try {
-      await apiClient.createProject(
+      const project = await apiClient.createProject(
         projectPath.split("/").pop() || "new-project",
         "New project",
         undefined // No git URL for local init
       );
+      setProjectId(project.id);
       setIsGitRepo(true);
       setGitUrl(""); // Clear git URL since we've initialized locally
+      if (project.details) {
+        setProjectDetails(project.details);
+      }
     } catch (error) {
       console.error('Failed to initialize repository:', error);
       alert("Failed to initialize repository. Please try again.");
@@ -159,12 +176,16 @@ export default function ProjectPage() {
 
     setIsLoading(true);
     try {
-      await apiClient.createProject(
+      const project = await apiClient.createProject(
         projectPath.split("/").pop() || "new-project",
         "Cloned project",
         gitUrl
       );
+      setProjectId(project.id);
       setIsGitRepo(true);
+      if (project.details) {
+        setProjectDetails(project.details);
+      }
     } catch (error) {
       console.error('Failed to clone repository:', error);
       alert("Failed to clone repository. Please try again.");
@@ -174,12 +195,14 @@ export default function ProjectPage() {
   };
 
   const handleSaveState = async () => {
-    if (!saveName) return;
+    if (!saveName || !projectId) return;
 
     setIsLoading(true);
     try {
-      await apiClient.saveProjectState("initial", saveName);
+      await apiClient.saveProjectState(projectId, saveName);
       await loadSavedStates();
+      const count = await apiClient.getTotalSavedProjects();
+      setTotalSavedProjects(count);
       setIsSaveDialogOpen(false);
       setSaveName("");
     } catch (error) {
@@ -191,9 +214,10 @@ export default function ProjectPage() {
   };
 
   const handleLoadState = async (stateName: string) => {
+    if (!projectId) return;
     setIsLoading(true);
     try {
-      const project = await apiClient.loadProjectState("initial", stateName);
+      const project = await apiClient.loadProjectState(projectId, stateName);
       setProjectDetails(project.details);
       setIsGitRepo(true);
       setIsLoadDialogOpen(false);
@@ -206,7 +230,7 @@ export default function ProjectPage() {
   };
 
   const handleSendMessage = async () => {
-    if (!inputMessage.trim() || isLoading || !isGitRepo) return;
+    if (!inputMessage.trim() || isLoading || !isGitRepo || !projectId) return;
 
     try {
       setIsLoading(true);
@@ -221,7 +245,7 @@ export default function ProjectPage() {
       setInputMessage("");
 
       // Get AI response
-      const response = await apiClient.chatWithAI("initial", inputMessage);
+      const response = await apiClient.chatWithAI(projectId, inputMessage);
       
       // Update project details if provided
       if (response.details) {
@@ -333,21 +357,21 @@ export default function ProjectPage() {
             <div className="flex gap-2">
               <button
                 onClick={() => setIsSaveDialogOpen(true)}
-                disabled={!isGitRepo || isLoading}
+                disabled={!projectPath || isLoading}
                 className={`flex-1 px-3 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 text-sm ${
-                  (!isGitRepo || isLoading) ? 'opacity-50 cursor-not-allowed' : ''
+                  (!projectPath || isLoading) ? 'opacity-50 cursor-not-allowed' : ''
                 }`}
               >
                 Save State
               </button>
               <button
                 onClick={() => setIsLoadDialogOpen(true)}
-                disabled={isLoading || savedStates.length === 0}
+                disabled={isLoading || totalSavedProjects === 0}
                 className={`flex-1 px-3 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 text-sm ${
-                  (isLoading || savedStates.length === 0) ? 'opacity-50 cursor-not-allowed' : ''
+                  (isLoading || totalSavedProjects === 0) ? 'opacity-50 cursor-not-allowed' : ''
                 }`}
               >
-                Load State ({savedStates.length})
+                Load State ({totalSavedProjects})
               </button>
             </div>
           </div>

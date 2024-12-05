@@ -1,4 +1,4 @@
-import { ApiClient, ChatResponse, Project } from '@/types/api';
+import { ApiClient, ChatResponse, Project } from '../types/api';
 
 class ApiClientImpl implements ApiClient {
     private baseUrl: string;
@@ -85,6 +85,11 @@ class ApiClientImpl implements ApiClient {
 
     async listProjectSaves(projectId: string): Promise<string[]> {
         return this.request<string[]>(`/projects/${projectId}/saves`);
+    }
+
+    async getTotalSavedProjects(): Promise<number> {
+        const response = await this.request<{ count: number }>('/projects/saves/count');
+        return response.count;
     }
 }
 
