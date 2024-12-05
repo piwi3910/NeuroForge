@@ -27,7 +27,7 @@ interface AIResponse {
 export class AIArchitectService {
   private systemPrompts: Map<string, string> = new Map();
   private openai: OpenAI;
-  private messageHistory: ChatMessage[] = [];
+  private messageHistory: Map<string, ChatMessage[]> = new Map();
 
   constructor() {
     this.loadSystemPrompts();
@@ -54,15 +54,16 @@ export class AIArchitectService {
     }
   }
 
+  clearHistory(projectId: string): void {
+    this.messageHistory.delete(projectId);
+  }
+
   async chat(messages: ChatMessage[]): Promise<AIResponse> {
     try {
       const systemPrompt = this.systemPrompts.get('project-definition');
       if (!systemPrompt) {
         throw new Error('System prompt not found');
       }
-
-      // Add new messages to history
-      this.messageHistory = [...this.messageHistory, ...messages];
 
       // Add instructions for JSON response format
       const jsonInstructions = `
@@ -82,7 +83,7 @@ Please provide your response in valid JSON format with the following structure:
       // Prepare messages for OpenAI
       const openAiMessages: ChatCompletionMessageParam[] = [
         { role: "system", content: systemPrompt + "\n" + jsonInstructions } as ChatCompletionSystemMessageParam,
-        ...this.messageHistory.map(msg => {
+        ...messages.map(msg => {
           if (msg.role === 'assistant') {
             return { role: 'assistant', content: msg.content } as ChatCompletionAssistantMessageParam;
           } else {
@@ -116,12 +117,6 @@ Please provide your response in valid JSON format with the following structure:
       // Parse the JSON response
       const parsedResponse = JSON.parse(jsonMatch[0]);
       
-      // Add AI response to history
-      this.messageHistory.push({
-        role: 'assistant',
-        content: parsedResponse.message
-      });
-
       // Extract project details and message
       const aiResponse: AIResponse = {
         message: parsedResponse.message,
