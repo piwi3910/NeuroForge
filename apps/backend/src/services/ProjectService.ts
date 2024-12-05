@@ -19,7 +19,8 @@ export class ProjectService {
     this.gitServices = new Map();
     this.fileSystem = new FileSystemService();
     this.aiArchitect = new AIArchitectService();
-    this.baseProjectsPath = baseProjectsPath;
+    // Ensure we use the root projects directory
+    this.baseProjectsPath = path.resolve(process.cwd(), '../../projects');
   }
 
   async createProject(
