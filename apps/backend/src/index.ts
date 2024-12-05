@@ -1,11 +1,11 @@
+import * as dotenv from 'dotenv';
+// Load environment variables before importing other modules
+dotenv.config();
+
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import projectRoutes from './routes/project';
 import backlogRoutes from './routes/backlog';
-
-// Load environment variables
-dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -39,6 +39,12 @@ app.get('/health', (req, res) => {
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
   console.log(`API Documentation available at http://localhost:${port}/api-docs`);
+  console.log('Environment variables loaded:', {
+    PORT: process.env.PORT,
+    OPENAI_API_KEY: process.env.OPENAI_API_KEY ? '***' : undefined,
+    BASE_PROJECTS_PATH: process.env.BASE_PROJECTS_PATH,
+    CORS_ORIGIN: process.env.CORS_ORIGIN
+  });
 });
 
 // Handle uncaught exceptions

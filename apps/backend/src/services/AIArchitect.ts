@@ -73,7 +73,7 @@ export class AIArchitectService {
     }
   }
 
-  async chat(messages: { role: string; content: string }[]): Promise<string> {
+  async chat(messages: { role: 'user' | 'assistant' | 'system'; content: string }[]): Promise<string> {
     const response = await this.openai.chat.completions.create({
       model: "gpt-4",
       messages: [
@@ -81,7 +81,10 @@ export class AIArchitectService {
           role: "system",
           content: "You are an expert software architect helping to define and structure a software project."
         },
-        ...messages
+        ...messages.map(msg => ({
+          role: msg.role,
+          content: msg.content
+        }))
       ]
     });
 

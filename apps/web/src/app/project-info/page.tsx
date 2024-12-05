@@ -1,31 +1,58 @@
 "use client";
 
 import { useState } from "react";
-
-interface Message {
-  role: "user" | "assistant";
-  content: string;
-}
+import { ChatMessage } from "@/types/api";
+import { apiClient } from "@/services/api";
 
 export default function ProjectPage() {
-  const [messages, setMessages] = useState<Message[]>([
+  const [projectPath, setProjectPath] = useState("");
+  const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: "assistant",
-      content: "Hello! I'm your AI Architect. I'll help you define your project and set up the architecture. Let's start by choosing a location for your project. Where would you like to store it?"
+      content: "Hello! I'm your AI Architect. I'll help you define your project and set up the architecture. Let's start by choosing a location for your project. Where would you like to store it?",
+      timestamp: new Date()
     }
   ]);
-  const [projectPath, setProjectPath] = useState("");
   const [inputMessage, setInputMessage] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSendMessage = () => {
-    if (!inputMessage.trim()) return;
-    
-    setMessages(prev => [...prev, 
-      { role: "user", content: inputMessage },
-      // Temporary placeholder response
-      { role: "assistant", content: "I understand. Let me help you with that. Could you tell me more about what kind of project you want to create?" }
-    ]);
-    setInputMessage("");
+  const handleSendMessage = async () => {
+    if (!inputMessage.trim() || isLoading) return;
+
+    try {
+      setIsLoading(true);
+      
+      // Add user message to chat
+      const userMessage: ChatMessage = {
+        role: "user",
+        content: inputMessage,
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, userMessage]);
+      setInputMessage("");
+
+      // Get AI response
+      const response = await apiClient.chatWithAI("temp-project-id", inputMessage);
+      
+      setMessages(prev => [...prev, {
+        ...response,
+        timestamp: new Date(response.timestamp)
+      }]);
+    } catch (error) {
+      console.error('Failed to get AI response:', error);
+      setMessages(prev => [...prev, {
+        role: "assistant",
+        content: "I apologize, but I encountered an error. Please try again.",
+        timestamp: new Date()
+      }]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleBrowse = () => {
+    // TODO: Implement file browser dialog
+    console.log("Browse clicked");
   };
 
   return (
@@ -45,7 +72,10 @@ export default function ProjectPage() {
                 placeholder="/path/to/your/project"
                 className="flex-1 bg-[#1e1e1e] border border-[#3e3e3e] rounded px-3 py-2 text-sm"
               />
-              <button className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm">
+              <button 
+                onClick={handleBrowse}
+                className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+              >
                 Browse
               </button>
             </div>
@@ -94,12 +124,16 @@ export default function ProjectPage() {
               onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
               placeholder="Describe your project..."
               className="flex-1 bg-[#1e1e1e] border border-[#3e3e3e] rounded px-3 py-2"
+              disabled={isLoading}
             />
             <button
               onClick={handleSendMessage}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              className={`px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 ${
+                isLoading ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
+              disabled={isLoading}
             >
-              Send
+              {isLoading ? 'Sending...' : 'Send'}
             </button>
           </div>
         </div>
