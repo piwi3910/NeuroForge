@@ -166,7 +166,12 @@ export default function ProjectPage() {
       // Update project details if provided
       if (response.details) {
         console.log('Updating project details:', response.details); // Debug log
-        setProjectDetails(response.details);
+        setProjectDetails(prev => ({
+          name: response.details?.name || prev.name,
+          description: response.details?.description || prev.description,
+          stack: response.details?.stack || prev.stack,
+          status: response.details?.status || prev.status
+        }));
       }
 
       // Add AI message to chat
@@ -297,6 +302,29 @@ export default function ProjectPage() {
                 <div>
                   <span className="text-gray-400">Stack:</span>
                   <div className="mt-1 text-white">{projectDetails.stack || "Not set"}</div>
+                </div>
+                <div>
+                  <span className="text-gray-400">Status:</span>
+                  <div className="mt-1 space-y-1">
+                    <div className="flex justify-between">
+                      <span>Name:</span>
+                      <span className={projectDetails.status?.name === 'complete' ? "text-green-500" : "text-yellow-500"}>
+                        {projectDetails.status?.name}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Description:</span>
+                      <span className={projectDetails.status?.description === 'complete' ? "text-green-500" : "text-yellow-500"}>
+                        {projectDetails.status?.description}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Stack:</span>
+                      <span className={projectDetails.status?.stack === 'complete' ? "text-green-500" : "text-yellow-500"}>
+                        {projectDetails.status?.stack}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
