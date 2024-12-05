@@ -1,11 +1,13 @@
 import express from 'express';
+import { BacklogItem, BacklogFilter, ItemType, ItemStatus } from '../types/backlog';
 import { BacklogService } from '../services/BacklogService';
-import { BacklogItem, BacklogFilter, BacklogUpdate, ItemType } from '../types/backlog';
+import { AIArchitectService } from '../services/AIArchitect';
 
 const router = express.Router();
-const backlogService = new BacklogService();
+const aiArchitect = new AIArchitectService();
+const backlogService = new BacklogService(aiArchitect);
 
-// Create a new backlog item
+// Create backlog item
 router.post('/', async (req, res) => {
   try {
     const {
@@ -14,19 +16,21 @@ router.post('/', async (req, res) => {
       title,
       description,
       priority,
-      epicId,
-      storyId
+      parentId,
+      createdBy
     } = req.body;
 
-    const item = backlogService.createItem(
+    const item = await backlogService.createItem({
       projectId,
-      type as ItemType,
+      type,
       title,
       description,
+      status: 'To Do' as ItemStatus,
       priority,
-      epicId,
-      storyId
-    );
+      order: 0,
+      parentId,
+      createdBy
+    });
 
     res.json(item);
   } catch (error) {
@@ -35,21 +39,17 @@ router.post('/', async (req, res) => {
   }
 });
 
-// Get backlog items with filtering
+// Get backlog items
 router.get('/', async (req, res) => {
   try {
     const filter: BacklogFilter = {
       projectId: req.query.projectId as string,
       type: req.query.type as ItemType | undefined,
-      status: req.query.status as BacklogItem['status'] | undefined,
-      epicId: req.query.epicId as string | undefined,
-      storyId: req.query.storyId as string | undefined,
-      assignedTo: req.query.assignedTo as string | undefined,
-      labels: req.query.labels ? (req.query.labels as string).split(',') : undefined,
-      search: req.query.search as string | undefined
+      status: req.query.status as ItemStatus | undefined,
+      parentId: req.query.parentId as string | undefined
     };
 
-    const items = backlogService.getItems(filter);
+    const items = await backlogService.getItems(filter.projectId);
     res.json(items);
   } catch (error) {
     console.error('Failed to get backlog items:', error);
@@ -57,12 +57,12 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Update a backlog item
+// Update backlog item
 router.put('/:itemId', async (req, res) => {
   try {
     const { itemId } = req.params;
-    const update: BacklogUpdate = req.body;
-    const updatedItem = backlogService.updateItem(itemId, update);
+    const update = req.body;
+    const updatedItem = await backlogService.updateItem(itemId, update);
     res.json(updatedItem);
   } catch (error) {
     console.error('Failed to update backlog item:', error);
@@ -75,7 +75,7 @@ router.put('/:itemId/status', async (req, res) => {
   try {
     const { itemId } = req.params;
     const { status } = req.body;
-    const updatedItem = backlogService.updateStatus(itemId, status);
+    const updatedItem = await backlogService.updateStatus(itemId, status);
     res.json(updatedItem);
   } catch (error) {
     console.error('Failed to update item status:', error);
@@ -83,11 +83,11 @@ router.put('/:itemId/status', async (req, res) => {
   }
 });
 
-// Delete a backlog item
+// Delete backlog item
 router.delete('/:itemId', async (req, res) => {
   try {
     const { itemId } = req.params;
-    backlogService.deleteItem(itemId);
+    await backlogService.deleteItem(itemId);
     res.json({ success: true });
   } catch (error) {
     console.error('Failed to delete backlog item:', error);
@@ -95,11 +95,11 @@ router.delete('/:itemId', async (req, res) => {
   }
 });
 
-// Get item hierarchy for a project
+// Get item hierarchy
 router.get('/hierarchy/:projectId', async (req, res) => {
   try {
     const { projectId } = req.params;
-    const hierarchy = backlogService.getItemHierarchy(projectId);
+    const hierarchy = await backlogService.getItemHierarchy(projectId);
     res.json(hierarchy);
   } catch (error) {
     console.error('Failed to get item hierarchy:', error);
@@ -107,7 +107,7 @@ router.get('/hierarchy/:projectId', async (req, res) => {
   }
 });
 
-// Generate backlog items using AI
+// Generate backlog items
 router.post('/generate', async (req, res) => {
   try {
     const { projectId, projectDescription, systemPrompt } = req.body;

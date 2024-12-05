@@ -7,9 +7,9 @@ import { DirectoryBrowser } from "@/components/DirectoryBrowser";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 interface ProjectDetails {
-  name: string;
-  description: string;
-  stack: string;
+  name: string | null;
+  description: string | null;
+  stack: string | null;
 }
 
 export default function ProjectPage() {
@@ -17,9 +17,9 @@ export default function ProjectPage() {
   const [gitUrl, setGitUrl] = useState("");
   const [isGitRepo, setIsGitRepo] = useState(false);
   const [projectDetails, setProjectDetails] = useState<ProjectDetails>({
-    name: "",
-    description: "",
-    stack: ""
+    name: null,
+    description: null,
+    stack: null
   });
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -53,9 +53,9 @@ export default function ProjectPage() {
       setGitUrl("");
       setIsGitRepo(false);
       setProjectDetails({
-        name: "",
-        description: "",
-        stack: ""
+        name: null,
+        description: null,
+        stack: null
       });
       setMessages([{
         role: "assistant",
@@ -131,12 +131,30 @@ export default function ProjectPage() {
       // Get AI response
       const response = await apiClient.chatWithAI("initial", inputMessage);
       
-      // Add AI response to chat
-      setMessages(prev => [...prev, {
-        role: "assistant",
-        content: response.content,
-        timestamp: new Date(response.timestamp)
-      }]);
+      // Parse AI response for project details
+      try {
+        const aiResponse = JSON.parse(response.content);
+        if (aiResponse.name || aiResponse.description || aiResponse.stack) {
+          setProjectDetails(prev => ({
+            name: aiResponse.name || prev.name,
+            description: aiResponse.description || prev.description,
+            stack: aiResponse.stack || prev.stack
+          }));
+        }
+        // Add the message part to chat
+        setMessages(prev => [...prev, {
+          role: "assistant",
+          content: aiResponse.message,
+          timestamp: new Date()
+        }]);
+      } catch {
+        // If response is not JSON, just add it as a message
+        setMessages(prev => [...prev, {
+          role: "assistant",
+          content: response.content,
+          timestamp: new Date()
+        }]);
+      }
 
       // Focus the input after sending
       chatInputRef.current?.focus();
@@ -152,6 +170,8 @@ export default function ProjectPage() {
       setIsLoading(false);
     }
   };
+
+  const isProjectDefined = projectDetails.name && projectDetails.description && projectDetails.stack;
 
   return (
     <main className="h-[calc(100vh-40px)] bg-[#1e1e1e] p-4 flex flex-col">
@@ -267,8 +287,10 @@ export default function ProjectPage() {
               Reset
             </button>
             <button
-              disabled={true} // Disabled for now
-              className="flex-1 px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm opacity-50 cursor-not-allowed"
+              disabled={!isProjectDefined}
+              className={`flex-1 px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm ${
+                !isProjectDefined ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
             >
               Build
             </button>

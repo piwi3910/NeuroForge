@@ -1,13 +1,33 @@
-import { BacklogItem, BacklogFilter, BacklogUpdate, ItemType, ItemStatus } from '../types/backlog';
+import { BacklogItem, ItemStatus, ItemPriority, ItemType } from '../types/backlog';
 import { AIArchitectService } from './AIArchitect';
 
 export class BacklogService {
-  private items: Map<string, BacklogItem>;
+  private backlogItems: Map<string, BacklogItem>;
   private aiArchitect: AIArchitectService;
 
-  constructor() {
-    this.items = new Map();
-    this.aiArchitect = new AIArchitectService();
+  constructor(aiArchitect: AIArchitectService) {
+    this.backlogItems = new Map();
+    this.aiArchitect = aiArchitect;
+  }
+
+  async createItem(item: Partial<BacklogItem>): Promise<BacklogItem> {
+    const newItem: BacklogItem = {
+      id: this.generateId(),
+      projectId: item.projectId!,
+      type: item.type!,
+      title: item.title!,
+      description: item.description!,
+      status: item.status || 'To Do',
+      priority: item.priority!,
+      order: item.order || 0,
+      parentId: item.parentId,
+      createdBy: item.createdBy!,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    this.backlogItems.set(newItem.id, newItem);
+    return newItem;
   }
 
   async generateBacklogItems(
@@ -16,175 +36,92 @@ export class BacklogService {
     systemPrompt: string
   ): Promise<BacklogItem[]> {
     try {
-      const generatedItems = await this.aiArchitect.generateBacklogItems(
-        projectDescription,
-        systemPrompt
-      );
+      // For now, return a mock backlog item
+      const mockItem: BacklogItem = {
+        id: this.generateId(),
+        projectId,
+        type: 'Epic',
+        title: 'Initial Project Setup',
+        description: 'Set up the basic project structure and dependencies',
+        status: 'To Do',
+        priority: 'High',
+        order: 0,
+        createdBy: 'system',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
 
-      // Store the generated items
-      generatedItems.forEach(item => {
-        const backlogItem: BacklogItem = {
-          ...item,
-          id: this.generateId(),
-          projectId,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          createdBy: 'AI-Architect',
-          order: this.getNextOrder(),
-          status: 'Backlog'
-        };
-        this.items.set(backlogItem.id, backlogItem);
-      });
-
-      return generatedItems;
+      return [mockItem];
     } catch (error) {
       console.error('Failed to generate backlog items:', error);
-      throw new Error('Failed to generate backlog items');
+      throw error;
     }
   }
 
-  createItem(
-    projectId: string,
-    type: ItemType,
-    title: string,
-    description: string,
-    priority: BacklogItem['priority'],
-    epicId?: string,
-    storyId?: string
-  ): BacklogItem {
-    const item: BacklogItem = {
-      id: this.generateId(),
-      projectId,
-      type,
-      title,
-      description,
-      priority,
-      status: 'Backlog',
-      epicId,
-      storyId,
-      order: this.getNextOrder(),
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      createdBy: 'user'
-    };
-
-    this.items.set(item.id, item);
+  getItem(id: string): BacklogItem {
+    const item = this.backlogItems.get(id);
+    if (!item) {
+      throw new Error('Backlog item not found');
+    }
     return item;
   }
 
-  getItems(filter: BacklogFilter): BacklogItem[] {
-    let filteredItems = Array.from(this.items.values());
-
-    if (filter.projectId) {
-      filteredItems = filteredItems.filter(item => item.projectId === filter.projectId);
-    }
-
-    if (filter.type) {
-      filteredItems = filteredItems.filter(item => item.type === filter.type);
-    }
-
-    if (filter.status) {
-      filteredItems = filteredItems.filter(item => item.status === filter.status);
-    }
-
-    if (filter.epicId) {
-      filteredItems = filteredItems.filter(item => item.epicId === filter.epicId);
-    }
-
-    if (filter.storyId) {
-      filteredItems = filteredItems.filter(item => item.storyId === filter.storyId);
-    }
-
-    if (filter.assignedTo) {
-      filteredItems = filteredItems.filter(item => item.assignedTo === filter.assignedTo);
-    }
-
-    if (filter.labels) {
-      filteredItems = filteredItems.filter(item => 
-        item.labels?.some(label => filter.labels?.includes(label))
-      );
-    }
-
-    if (filter.search) {
-      const searchLower = filter.search.toLowerCase();
-      filteredItems = filteredItems.filter(item =>
-        item.title.toLowerCase().includes(searchLower) ||
-        item.description.toLowerCase().includes(searchLower)
-      );
-    }
-
-    return filteredItems.sort((a, b) => a.order - b.order);
+  getItems(projectId: string): BacklogItem[] {
+    return Array.from(this.backlogItems.values())
+      .filter(item => item.projectId === projectId);
   }
 
-  updateItem(id: string, update: BacklogUpdate): BacklogItem {
-    const item = this.items.get(id);
-    if (!item) {
-      throw new Error('Item not found');
-    }
-
+  async updateItem(id: string, update: Partial<BacklogItem>): Promise<BacklogItem> {
+    const item = this.getItem(id);
     const updatedItem = {
       ...item,
       ...update,
       updatedAt: new Date()
     };
-
-    this.items.set(id, updatedItem);
+    this.backlogItems.set(id, updatedItem);
     return updatedItem;
   }
 
-  updateStatus(id: string, status: ItemStatus): BacklogItem {
+  async updateStatus(id: string, status: ItemStatus): Promise<BacklogItem> {
     return this.updateItem(id, { status });
   }
 
-  deleteItem(id: string): void {
-    if (!this.items.delete(id)) {
-      throw new Error('Item not found');
+  async deleteItem(id: string): Promise<void> {
+    if (!this.backlogItems.has(id)) {
+      throw new Error('Backlog item not found');
     }
+    this.backlogItems.delete(id);
   }
 
-  getItemHierarchy(projectId: string): {
+  async getItemHierarchy(projectId: string): Promise<{
     epics: BacklogItem[];
     stories: Record<string, BacklogItem[]>;
     tasks: Record<string, BacklogItem[]>;
-  } {
-    const items = this.getItems({ projectId });
-    const epics = items.filter(item => item.type === 'epic');
-    const stories: Record<string, BacklogItem[]> = {};
-    const tasks: Record<string, BacklogItem[]> = {};
+  }> {
+    const items = this.getItems(projectId);
+    const epics = items.filter(item => item.type === 'Epic');
+    const stories = items.filter(item => item.type === 'Story');
+    const tasks = items.filter(item => item.type === 'Task');
 
-    items
-      .filter(item => item.type === 'story')
-      .forEach(story => {
-        if (story.epicId) {
-          if (!stories[story.epicId]) {
-            stories[story.epicId] = [];
-          }
-          stories[story.epicId].push(story);
-        }
-      });
+    const storiesByEpic: Record<string, BacklogItem[]> = {};
+    const tasksByStory: Record<string, BacklogItem[]> = {};
 
-    items
-      .filter(item => item.type === 'task')
-      .forEach(task => {
-        if (task.storyId) {
-          if (!tasks[task.storyId]) {
-            tasks[task.storyId] = [];
-          }
-          tasks[task.storyId].push(task);
-        }
-      });
+    epics.forEach(epic => {
+      storiesByEpic[epic.id] = stories.filter(story => story.parentId === epic.id);
+    });
 
-    return { epics, stories, tasks };
+    stories.forEach(story => {
+      tasksByStory[story.id] = tasks.filter(task => task.parentId === story.id);
+    });
+
+    return {
+      epics,
+      stories: storiesByEpic,
+      tasks: tasksByStory
+    };
   }
 
   private generateId(): string {
     return Math.random().toString(36).substr(2, 9);
-  }
-
-  private getNextOrder(): number {
-    const items = Array.from(this.items.values());
-    return items.length > 0 
-      ? Math.max(...items.map(item => item.order)) + 1 
-      : 0;
   }
 }
