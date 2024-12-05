@@ -1,0 +1,26 @@
+{
+  "pages": {
+    "/page": [
+      "static/chunks/[project]__38a496._.js",
+      "static/chunks/src_app_favicon_ico_mjs_e7fd4c._.js",
+      "static/chunks/[root of the server]__664ab9._.css",
+      "static/chunks/src_app_layout_tsx_05dcc7._.js",
+      "static/chunks/src_app_layout_tsx_6993ae._.js",
+      "static/chunks/src_b7db48._.js",
+      "static/chunks/08b5e__pnpm_cf247e._.js",
+      "static/chunks/04cb7_refractor_7434c9._.js",
+      "static/chunks/9aeaa_micromark_dev_lib_b10892._.js",
+      "static/chunks/52fd0_micromark-core-commonmark_dev_lib_276102._.js",
+      "static/chunks/08b5e__pnpm_e33d0b._.js",
+      "static/chunks/src_app_page_tsx_4af486._.js",
+      "static/chunks/aab00_next_dist_compiled_react-dom_4a2cc0._.js",
+      "static/chunks/aab00_next_dist_compiled_0f17ca._.js",
+      "static/chunks/aab00_next_dist_client_0dd523._.js",
+      "static/chunks/aab00_next_dist_3f7598._.js",
+      "static/chunks/de9e7_@swc_helpers_cjs_6ab2e1._.js",
+      "static/chunks/[turbopack]_browser_dev_hmr-client_hmr-client_ts_376936._.js",
+      "static/chunks/[project]_apps_web_c4c472._.js",
+      "static/chunks/[project]_apps_web_fb0a7b._.js"
+    ]
+  }
+}
