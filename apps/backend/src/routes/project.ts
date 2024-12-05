@@ -18,7 +18,10 @@ router.post('/', async (req, res) => {
     console.log('Creating project:', { name, description, gitRepo });
     const project = await projectService.createProject(name, description, gitRepo);
     console.log('Project created:', project);
-    res.json(project);
+
+    // Start a new chat session
+    const response = await aiArchitect.chat([{ role: 'user', content: 'start' }], 'initial');
+    res.json({ ...project, chatResponse: response });
   } catch (error) {
     console.error('Failed to create project:', error);
     res.status(500).json({ 
@@ -33,6 +36,8 @@ router.delete('/:projectId', async (req, res) => {
   try {
     const { projectId } = req.params;
     await projectService.resetProject(projectId);
+    // Clear chat history
+    aiArchitect.clearHistory(projectId);
     res.json({ success: true });
   } catch (error) {
     console.error('Failed to reset project:', error);
@@ -68,6 +73,7 @@ router.post('/:projectId/system-prompt', async (req, res) => {
 // Chat with AI Architect
 router.post('/:projectId/chat', async (req, res) => {
   try {
+    const { projectId } = req.params;
     const { message } = req.body;
     if (!message) {
       return res.status(400).json({ error: 'Message is required' });
@@ -78,7 +84,7 @@ router.post('/:projectId/chat', async (req, res) => {
         role: 'user',
         content: message
       }
-    ]);
+    ], projectId);
 
     res.json({
       role: 'assistant',
