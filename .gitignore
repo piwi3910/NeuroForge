@@ -39,3 +39,7 @@ yarn-error.log*
 # sqlite database
 *.db
 apps/backend/src/db/*.db
+
+# user projects
+projects/*
+!projects/.gitkeep
