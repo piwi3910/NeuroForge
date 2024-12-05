@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { ChatMessage, ProjectDetails } from "@/types/api";
 import { apiClient } from "@/services/api";
 import { DirectoryBrowser } from "@/components/DirectoryBrowser";
@@ -20,18 +20,50 @@ export default function ProjectPage() {
       stack: 'incomplete'
     }
   });
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      role: "assistant",
-      content: "Hello! I'm your AI Architect. Once you've set up your project repository, I'll help you define your project architecture.",
-      timestamp: new Date()
-    }
-  ]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isBrowseOpen, setIsBrowseOpen] = useState(false);
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
   const chatInputRef = useRef<HTMLInputElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to bottom when messages change
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  // Start chat when repository is initialized
+  useEffect(() => {
+    if (isGitRepo) {
+      handleStartChat();
+    }
+  }, [isGitRepo]);
+
+  const handleStartChat = async () => {
+    try {
+      setIsLoading(true);
+      const response = await apiClient.chatWithAI("initial", "start");
+      setMessages([{
+        role: "assistant",
+        content: response.content,
+        timestamp: new Date(response.timestamp)
+      }]);
+    } catch (error) {
+      console.error('Failed to start chat:', error);
+      setMessages([{
+        role: "assistant",
+        content: "Hello! I'm your AI Architect. Let's define your project together. What would you like to build?",
+        timestamp: new Date()
+      }]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleBrowse = () => {
     setIsBrowseOpen(true);
@@ -61,11 +93,7 @@ export default function ProjectPage() {
           stack: 'incomplete'
         }
       });
-      setMessages([{
-        role: "assistant",
-        content: "Hello! I'm your AI Architect. Once you've set up your project repository, I'll help you define your project architecture.",
-        timestamp: new Date()
-      }]);
+      setMessages([]);
     } catch (error) {
       console.error('Failed to reset project:', error);
       alert("Failed to reset project. Please try again.");
@@ -301,19 +329,27 @@ export default function ProjectPage() {
           <h2 className="text-xl font-semibold mb-4">AI Architect Chat</h2>
           
           <div className="flex-1 bg-[#1e1e1e] rounded p-3 mb-4 overflow-auto">
-            {messages.map((message, index) => (
-              <div
-                key={index}
-                className={`mb-4 ${
-                  message.role === "assistant" ? "text-blue-400" : "text-green-400"
-                }`}
-              >
-                <span className="font-medium">
-                  {message.role === "assistant" ? "AI Architect: " : "You: "}
-                </span>
-                <span className="text-white">{message.content}</span>
-              </div>
-            ))}
+            <div className="flex flex-col space-y-4">
+              {messages.map((message, index) => (
+                <div
+                  key={index}
+                  className={`flex ${
+                    message.role === "assistant" ? "justify-start" : "justify-end"
+                  }`}
+                >
+                  <div
+                    className={`max-w-[80%] rounded-2xl px-4 py-2 ${
+                      message.role === "assistant"
+                        ? "bg-[#2e2e2e] rounded-tl-none"
+                        : "bg-blue-600 rounded-tr-none"
+                    }`}
+                  >
+                    <p className="text-white">{message.content}</p>
+                  </div>
+                </div>
+              ))}
+              <div ref={messagesEndRef} />
+            </div>
           </div>
 
           <div className="flex gap-2">
@@ -323,13 +359,13 @@ export default function ProjectPage() {
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
               onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
-              placeholder={isGitRepo ? "Describe your project..." : "Please set up your project repository first"}
-              className="flex-1 bg-[#1e1e1e] border border-[#3e3e3e] rounded px-3 py-2"
+              placeholder={isGitRepo ? "Type your message..." : "Please set up your project repository first"}
+              className="flex-1 bg-[#1e1e1e] border border-[#3e3e3e] rounded-full px-4 py-2"
               disabled={isLoading || !isGitRepo}
             />
             <button
               onClick={handleSendMessage}
-              className={`px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 ${
+              className={`px-4 py-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 ${
                 (isLoading || !isGitRepo) ? 'opacity-50 cursor-not-allowed' : ''
               }`}
               disabled={isLoading || !isGitRepo}
