@@ -1,6 +1,7 @@
 "use client";
 
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
+import { useState } from "react";
 
 function ResizeHandle() {
   return (
@@ -8,31 +9,85 @@ function ResizeHandle() {
   );
 }
 
+interface BacklogItem {
+  id: number;
+  type: "epic" | "story" | "task";
+  title: string;
+  priority: "High" | "Medium" | "Low";
+  status: "Backlog" | "To Do" | "In Progress" | "Done";
+  epicId?: number;  // For stories and tasks
+  storyId?: number; // For tasks
+  description?: string;
+}
+
 function BacklogList() {
-  const backlogItems = [
-    { id: 1, title: "Implement authentication", priority: "High" },
-    { id: 2, title: "Add file search functionality", priority: "Medium" },
-    { id: 3, title: "Create user settings page", priority: "Low" },
-    { id: 4, title: "Improve error handling", priority: "Medium" },
-    { id: 5, title: "Add dark/light theme toggle", priority: "Low" },
-  ];
+  const [backlogItems, setBacklogItems] = useState<BacklogItem[]>([
+    { 
+      id: 1, 
+      type: "epic", 
+      title: "User Authentication System", 
+      priority: "High",
+      status: "Backlog",
+      description: "Implement complete user authentication flow"
+    },
+    { 
+      id: 2, 
+      type: "story", 
+      title: "User Registration", 
+      priority: "High",
+      status: "Backlog",
+      epicId: 1,
+      description: "Users should be able to create new accounts"
+    },
+    { 
+      id: 3, 
+      type: "task", 
+      title: "Create registration form", 
+      priority: "Medium",
+      status: "Backlog",
+      epicId: 1,
+      storyId: 2
+    }
+  ]);
+
+  const getItemIcon = (type: string) => {
+    switch (type) {
+      case 'epic': return '🔷';
+      case 'story': return '📖';
+      case 'task': return '✓';
+      default: return '•';
+    }
+  };
 
   return (
     <div className="h-full flex flex-col">
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-semibold">Project Backlog</h1>
-        <button className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700">
-          Add Item
+        <button 
+          className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+          title="Generate items using AI Architect"
+        >
+          Generate Items
         </button>
       </div>
       <div className="flex-1 overflow-auto">
         {backlogItems.map((item) => (
           <div
             key={item.id}
-            className="mb-2 p-3 bg-[#2d2d2d] rounded hover:bg-[#363636] cursor-pointer"
+            className={`mb-2 p-3 bg-[#2d2d2d] rounded hover:bg-[#363636] cursor-pointer ${
+              item.type === 'story' ? 'ml-4' : item.type === 'task' ? 'ml-8' : ''
+            }`}
           >
             <div className="flex justify-between items-start">
-              <span className="text-sm">{item.title}</span>
+              <div className="flex items-start gap-2">
+                <span className="mt-1">{getItemIcon(item.type)}</span>
+                <div>
+                  <span className="text-sm">{item.title}</span>
+                  {item.description && (
+                    <p className="text-xs text-gray-400 mt-1">{item.description}</p>
+                  )}
+                </div>
+              </div>
               <span className={`text-xs px-2 py-1 rounded ${
                 item.priority === "High" 
                   ? "bg-red-900/50 text-red-200"
@@ -55,22 +110,22 @@ function KanbanBoard() {
     {
       title: "To Do",
       items: [
-        { id: 1, title: "Setup CI/CD pipeline" },
-        { id: 2, title: "Write documentation" },
+        { id: 1, title: "Setup CI/CD pipeline", type: "task" },
+        { id: 2, title: "Write documentation", type: "task" },
       ],
     },
     {
       title: "In Progress",
       items: [
-        { id: 3, title: "Implement file explorer" },
-        { id: 4, title: "Add terminal integration" },
+        { id: 3, title: "Implement file explorer", type: "task" },
+        { id: 4, title: "Add terminal integration", type: "task" },
       ],
     },
     {
       title: "Done",
       items: [
-        { id: 5, title: "Create project structure" },
-        { id: 6, title: "Setup development environment" },
+        { id: 5, title: "Create project structure", type: "task" },
+        { id: 6, title: "Setup development environment", type: "task" },
       ],
     },
   ];
@@ -90,7 +145,10 @@ function KanbanBoard() {
                   key={item.id}
                   className="p-3 bg-[#2d2d2d] rounded hover:bg-[#363636] cursor-move"
                 >
-                  <span className="text-sm">{item.title}</span>
+                  <div className="flex items-center gap-2">
+                    <span>✓</span>
+                    <span className="text-sm">{item.title}</span>
+                  </div>
                 </div>
               ))}
             </div>
