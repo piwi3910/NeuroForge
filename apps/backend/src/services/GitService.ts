@@ -1,138 +1,118 @@
-import simpleGit, { SimpleGit } from 'simple-git';
-import fs from 'fs/promises';
+import { exec } from 'child_process';
+import { promisify } from 'util';
 import path from 'path';
 
+const execAsync = promisify(exec);
+
 export class GitService {
-  private git: SimpleGit;
   private projectPath: string;
 
   constructor(projectPath: string) {
     this.projectPath = projectPath;
-    this.git = simpleGit(projectPath);
   }
 
   async initializeRepository(): Promise<void> {
     try {
-      // Check if directory exists, if not create it
-      try {
-        await fs.access(this.projectPath);
-      } catch {
-        await fs.mkdir(this.projectPath, { recursive: true });
-      }
-
-      // Initialize git repository
-      await this.git.init();
+      console.log('Initializing git repository at:', this.projectPath);
       
-      // Create .gitignore if it doesn't exist
+      // Initialize git repository
+      await execAsync('git init', { cwd: this.projectPath });
+      console.log('Git repository initialized');
+
+      // Create initial .gitignore
       const gitignorePath = path.join(this.projectPath, '.gitignore');
-      try {
-        await fs.access(gitignorePath);
-      } catch {
-        const defaultGitignore = `node_modules/
+      const gitignoreContent = `node_modules/
 .env
 .env.local
 .DS_Store
 *.log`;
-        await fs.writeFile(gitignorePath, defaultGitignore);
-      }
+      await execAsync(`echo "${gitignoreContent}" > .gitignore`, { cwd: this.projectPath });
+      console.log('Created .gitignore');
 
-      // Initial commit
-      await this.git.add('.gitignore');
-      await this.git.commit('Initial commit');
+      // Create initial README.md
+      const readmePath = path.join(this.projectPath, 'README.md');
+      const readmeContent = `# Project\n\nThis project was created with NeuroForge.`;
+      await execAsync(`echo "${readmeContent}" > README.md`, { cwd: this.projectPath });
+      console.log('Created README.md');
+
+      // Add and commit initial files
+      await execAsync('git add .', { cwd: this.projectPath });
+      await execAsync('git commit -m "Initial commit"', { 
+        cwd: this.projectPath,
+        env: {
+          ...process.env,
+          GIT_AUTHOR_NAME: 'NeuroForge',
+          GIT_AUTHOR_EMAIL: 'ai@neuroforge.dev',
+          GIT_COMMITTER_NAME: 'NeuroForge',
+          GIT_COMMITTER_EMAIL: 'ai@neuroforge.dev'
+        }
+      });
+      console.log('Created initial commit');
+
     } catch (error) {
-      console.error('Failed to initialize repository:', error);
+      console.error('Error initializing git repository:', error);
       throw new Error('Failed to initialize git repository');
     }
   }
 
-  async cloneRepository(url: string): Promise<void> {
+  async cloneRepository(repoUrl: string): Promise<void> {
     try {
-      await this.git.clone(url, this.projectPath);
+      await execAsync(`git clone ${repoUrl} .`, { cwd: this.projectPath });
     } catch (error) {
-      console.error('Failed to clone repository:', error);
+      console.error('Error cloning repository:', error);
       throw new Error('Failed to clone repository');
-    }
-  }
-
-  async getCurrentBranch(): Promise<string> {
-    try {
-      const result = await this.git.branch();
-      return result.current;
-    } catch (error) {
-      console.error('Failed to get current branch:', error);
-      throw new Error('Failed to get current branch');
-    }
-  }
-
-  async createBranch(branchName: string): Promise<void> {
-    try {
-      await this.git.checkoutLocalBranch(branchName);
-    } catch (error) {
-      console.error('Failed to create branch:', error);
-      throw new Error('Failed to create branch');
     }
   }
 
   async commitChanges(message: string): Promise<void> {
     try {
-      await this.git.add('.');
-      await this.git.commit(message);
+      await execAsync('git add .', { cwd: this.projectPath });
+      await execAsync(`git commit -m "${message}"`, { 
+        cwd: this.projectPath,
+        env: {
+          ...process.env,
+          GIT_AUTHOR_NAME: 'NeuroForge',
+          GIT_AUTHOR_EMAIL: 'ai@neuroforge.dev',
+          GIT_COMMITTER_NAME: 'NeuroForge',
+          GIT_COMMITTER_EMAIL: 'ai@neuroforge.dev'
+        }
+      });
     } catch (error) {
-      console.error('Failed to commit changes:', error);
+      console.error('Error committing changes:', error);
       throw new Error('Failed to commit changes');
     }
   }
 
-  async pushChanges(branch: string): Promise<void> {
+  async createFeatureBranch(branchName: string): Promise<void> {
     try {
-      await this.git.push('origin', branch);
+      await execAsync(`git checkout -b ${branchName}`, { cwd: this.projectPath });
     } catch (error) {
-      console.error('Failed to push changes:', error);
-      throw new Error('Failed to push changes');
-    }
-  }
-
-  async pullChanges(branch: string): Promise<void> {
-    try {
-      await this.git.pull('origin', branch);
-    } catch (error) {
-      console.error('Failed to pull changes:', error);
-      throw new Error('Failed to pull changes');
-    }
-  }
-
-  async getStatus(): Promise<string> {
-    try {
-      const status = await this.git.status();
-      return JSON.stringify(status, null, 2);
-    } catch (error) {
-      console.error('Failed to get status:', error);
-      throw new Error('Failed to get status');
-    }
-  }
-
-  async createFeatureBranch(featureName: string): Promise<void> {
-    try {
-      const sanitizedName = featureName
-        .toLowerCase()
-        .replace(/[^a-z0-9]/g, '-')
-        .replace(/-+/g, '-');
-      const branchName = `feature/${sanitizedName}`;
-      await this.createBranch(branchName);
-    } catch (error) {
-      console.error('Failed to create feature branch:', error);
+      console.error('Error creating feature branch:', error);
       throw new Error('Failed to create feature branch');
     }
   }
 
-  async commitAndPushFeature(featureName: string, message: string): Promise<void> {
+  async getCurrentBranch(): Promise<string> {
     try {
-      await this.commitChanges(message);
-      const currentBranch = await this.getCurrentBranch();
-      await this.pushChanges(currentBranch);
+      const { stdout } = await execAsync('git rev-parse --abbrev-ref HEAD', { cwd: this.projectPath });
+      return stdout.trim();
     } catch (error) {
-      console.error('Failed to commit and push feature:', error);
-      throw new Error('Failed to commit and push feature');
+      console.error('Error getting current branch:', error);
+      throw new Error('Failed to get current branch');
+    }
+  }
+
+  async getBranches(): Promise<string[]> {
+    try {
+      const { stdout } = await execAsync('git branch', { cwd: this.projectPath });
+      return stdout
+        .split('\n')
+        .map(branch => branch.trim())
+        .filter(branch => branch.length > 0)
+        .map(branch => branch.replace('* ', ''));
+    } catch (error) {
+      console.error('Error getting branches:', error);
+      throw new Error('Failed to get branches');
     }
   }
 }
