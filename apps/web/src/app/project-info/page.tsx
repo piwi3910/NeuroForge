@@ -5,10 +5,21 @@ import { ChatMessage } from "@/types/api";
 import { apiClient } from "@/services/api";
 import { DirectoryBrowser } from "@/components/DirectoryBrowser";
 
+interface ProjectDetails {
+  name: string;
+  description: string;
+  stack: string;
+}
+
 export default function ProjectPage() {
   const [projectPath, setProjectPath] = useState("");
   const [gitUrl, setGitUrl] = useState("");
   const [isGitRepo, setIsGitRepo] = useState(false);
+  const [projectDetails, setProjectDetails] = useState<ProjectDetails>({
+    name: "",
+    description: "",
+    stack: ""
+  });
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: "assistant",
@@ -198,6 +209,20 @@ export default function ProjectPage() {
                   <span>{gitUrl}</span>
                 </div>
               )}
+              <div className="pt-4 space-y-3">
+                <div>
+                  <span className="text-gray-400">Name:</span>
+                  <div className="mt-1 text-white">{projectDetails.name || "Not set"}</div>
+                </div>
+                <div>
+                  <span className="text-gray-400">Description:</span>
+                  <div className="mt-1 text-white">{projectDetails.description || "Not set"}</div>
+                </div>
+                <div>
+                  <span className="text-gray-400">Stack:</span>
+                  <div className="mt-1 text-white">{projectDetails.stack || "Not set"}</div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
