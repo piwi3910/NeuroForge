@@ -93,6 +93,12 @@ class ApiClient {
     });
   }
 
+  async resetProject(projectId: string): Promise<{ success: boolean }> {
+    return this.request(`/projects/${projectId}`, {
+      method: 'DELETE'
+    });
+  }
+
   async updateProjectDescription(
     projectId: string,
     description: string

@@ -4,6 +4,7 @@ import { useState, useRef } from "react";
 import { ChatMessage } from "@/types/api";
 import { apiClient } from "@/services/api";
 import { DirectoryBrowser } from "@/components/DirectoryBrowser";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 interface ProjectDetails {
   name: string;
@@ -30,6 +31,7 @@ export default function ProjectPage() {
   const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isBrowseOpen, setIsBrowseOpen] = useState(false);
+  const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
   const chatInputRef = useRef<HTMLInputElement>(null);
 
   const handleBrowse = () => {
@@ -38,6 +40,34 @@ export default function ProjectPage() {
 
   const handleSelectDirectory = (path: string) => {
     setProjectPath(path);
+  };
+
+  const handleReset = async () => {
+    if (!projectPath) return;
+
+    setIsLoading(true);
+    try {
+      await apiClient.resetProject("initial");
+      // Reset all state
+      setProjectPath("");
+      setGitUrl("");
+      setIsGitRepo(false);
+      setProjectDetails({
+        name: "",
+        description: "",
+        stack: ""
+      });
+      setMessages([{
+        role: "assistant",
+        content: "Hello! I'm your AI Architect. Once you've set up your project repository, I'll help you define your project architecture.",
+        timestamp: new Date()
+      }]);
+    } catch (error) {
+      console.error('Failed to reset project:', error);
+      alert("Failed to reset project. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleInitRepo = async () => {
@@ -225,6 +255,24 @@ export default function ProjectPage() {
               </div>
             </div>
           </div>
+
+          <div className="flex gap-2">
+            <button
+              onClick={() => setIsResetDialogOpen(true)}
+              disabled={!projectPath || isLoading}
+              className={`flex-1 px-3 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-sm ${
+                (!projectPath || isLoading) ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
+            >
+              Reset
+            </button>
+            <button
+              disabled={true} // Disabled for now
+              className="flex-1 px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm opacity-50 cursor-not-allowed"
+            >
+              Build
+            </button>
+          </div>
         </div>
 
         {/* AI Architect Chat */}
@@ -276,6 +324,14 @@ export default function ProjectPage() {
         onClose={() => setIsBrowseOpen(false)}
         onSelect={handleSelectDirectory}
         initialPath="/home/piwi/Git/NeuroForge/projects"
+      />
+
+      <ConfirmDialog
+        isOpen={isResetDialogOpen}
+        onClose={() => setIsResetDialogOpen(false)}
+        onConfirm={handleReset}
+        title="Reset Project"
+        message="Are you sure? This will reset and delete your project."
       />
     </main>
   );

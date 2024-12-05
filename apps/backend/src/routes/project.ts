@@ -28,6 +28,18 @@ router.post('/', async (req, res) => {
   }
 });
 
+// Reset project
+router.delete('/:projectId', async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    await projectService.resetProject(projectId);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Failed to reset project:', error);
+    res.status(500).json({ error: 'Failed to reset project' });
+  }
+});
+
 // Update project description
 router.put('/:projectId/description', async (req, res) => {
   try {

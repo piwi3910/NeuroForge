@@ -3,6 +3,7 @@ import { AIArchitectService } from './AIArchitect';
 import { GitService } from './GitService';
 import { FileSystemService } from './FileSystem';
 import path from 'path';
+import fs from 'fs/promises';
 
 export class ProjectService {
   private projects: Map<string, ProjectConfig>;
@@ -79,6 +80,27 @@ export class ProjectService {
       return project;
     } catch (error) {
       console.error('Error in createProject:', error);
+      throw error;
+    }
+  }
+
+  async resetProject(projectId: string): Promise<void> {
+    try {
+      const project = this.getProject(projectId);
+      
+      // Remove project directory
+      if (project.path) {
+        await fs.rm(project.path, { recursive: true, force: true });
+      }
+
+      // Clear project from memory
+      this.projects.delete(projectId);
+      this.chats.delete(projectId);
+      this.gitServices.delete(projectId);
+
+      console.log('Project reset successfully:', projectId);
+    } catch (error) {
+      console.error('Error in resetProject:', error);
       throw error;
     }
   }
