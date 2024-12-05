@@ -1,10 +1,29 @@
-import express from 'express';
+import express, { Router } from 'express';
 import { projectService } from '../services/ProjectService';
 import { AIArchitectService } from '../services/AIArchitect';
 import { dbService } from '../services/DatabaseService';
 
-const router = express.Router();
+const router: Router = express.Router();
 const aiArchitect = new AIArchitectService();
+
+/**
+ * @swagger
+ * /api/projects/saves/count:
+ *   get:
+ *     summary: Get total number of saved projects
+ *     responses:
+ *       200:
+ *         description: Total number of saved projects
+ */
+router.get('/saves/count', async (req, res) => {
+    try {
+        const count = await projectService.getTotalSavedProjects();
+        res.json({ count });
+    } catch (error) {
+        console.error('Failed to get total saved projects:', error);
+        res.status(500).json({ error: 'Failed to get total saved projects' });
+    }
+});
 
 /**
  * @swagger
