@@ -1,63 +1,46 @@
-"use client";
-
 import { useEffect, useRef } from 'react';
 
 interface DialogProps {
+  isOpen: boolean;
+  onClose: () => void;
   title: string;
-  message?: string;
-  defaultValue?: string;
-  onConfirm: (value: string) => void;
-  onCancel: () => void;
+  children: React.ReactNode;
 }
 
-export function Dialog({ title, message, defaultValue = '', onConfirm, onCancel }: DialogProps) {
-  const inputRef = useRef<HTMLInputElement>(null);
+export function Dialog({ isOpen, onClose, title, children }: DialogProps) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
+    const dialog = dialogRef.current;
+    if (!dialog) return;
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (inputRef.current?.value) {
-      onConfirm(inputRef.current.value);
+    if (isOpen) {
+      dialog.showModal();
+    } else {
+      dialog.close();
     }
-  };
+  }, [isOpen]);
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-[#2d2d2d] rounded-lg shadow-lg w-96">
-        <div className="p-4 border-b border-[#404040]">
-          <h2 className="text-lg font-medium text-white">{title}</h2>
+    <dialog
+      ref={dialogRef}
+      className="bg-[#252526] text-white rounded-lg p-0 backdrop:bg-black/50"
+      onClose={onClose}
+    >
+      <div className="min-w-[500px]">
+        <div className="flex justify-between items-center p-4 border-b border-[#3e3e3e]">
+          <h2 className="text-lg font-semibold">{title}</h2>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-white"
+          >
+            ✕
+          </button>
         </div>
-        <form onSubmit={handleSubmit}>
-          <div className="p-4 space-y-4">
-            {message && <p className="text-sm text-gray-300">{message}</p>}
-            <input
-              ref={inputRef}
-              type="text"
-              defaultValue={defaultValue}
-              className="w-full bg-[#1e1e1e] text-white px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-              spellCheck={false}
-            />
-          </div>
-          <div className="p-4 border-t border-[#404040] flex justify-end space-x-2">
-            <button
-              type="button"
-              onClick={onCancel}
-              className="px-4 py-2 text-sm text-gray-300 hover:text-white"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
-            >
-              Confirm
-            </button>
-          </div>
-        </form>
+        <div className="p-4">
+          {children}
+        </div>
       </div>
-    </div>
+    </dialog>
   );
 }

@@ -1,92 +1,78 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { FileSystemEntry } from '@neuroforge/shared';
 
-export class FileSystem {
-  static async readDirectory(dirPath: string): Promise<FileSystemEntry[]> {
+interface BaseEntry {
+  path: string;
+  name: string;
+}
+
+interface DirectoryEntry extends BaseEntry {
+  type: 'directory';
+}
+
+interface ParentEntry extends BaseEntry {
+  type: 'parent';
+}
+
+type FileSystemEntry = DirectoryEntry | ParentEntry;
+
+export class FileSystemService {
+  async listDirectories(dirPath: string): Promise<FileSystemEntry[]> {
     try {
-      const entries = await fs.readdir(dirPath, { withFileTypes: true });
-      const result: FileSystemEntry[] = [];
+      // Normalize and resolve the path
+      const normalizedPath = path.resolve(dirPath);
+      
+      // Get directory contents
+      const contents = await fs.readdir(normalizedPath, { withFileTypes: true });
+      
+      // Filter for directories only and map to response format
+      const directories: FileSystemEntry[] = contents
+        .filter(dirent => dirent.isDirectory())
+        .map(dirent => ({
+          path: path.join(normalizedPath, dirent.name),
+          name: dirent.name,
+          type: 'directory'
+        }));
 
-      for (const entry of entries) {
-        const fullPath = path.join(dirPath, entry.name);
-        if (entry.isDirectory()) {
-          const children = await this.readDirectory(fullPath);
-          result.push({
-            name: entry.name,
-            path: fullPath,
-            type: 'directory',
-            children
-          });
-        } else {
-          result.push({
-            name: entry.name,
-            path: fullPath,
-            type: 'file'
-          });
-        }
+      // Add parent directory if not at root
+      if (normalizedPath !== '/') {
+        directories.unshift({
+          path: path.dirname(normalizedPath),
+          name: '..',
+          type: 'parent'
+        });
       }
 
-      return result;
+      return directories;
     } catch (error) {
-      console.error('Error reading directory:', error);
-      throw error;
+      console.error('Failed to list directories:', error);
+      throw new Error('Failed to list directories');
     }
   }
 
-  static async readFile(filePath: string): Promise<string> {
-    try {
-      return await fs.readFile(filePath, 'utf-8');
-    } catch (error) {
-      console.error('Error reading file:', error);
-      throw error;
-    }
-  }
-
-  static async writeFile(filePath: string, content: string): Promise<void> {
-    try {
-      const dir = path.dirname(filePath);
-      await fs.mkdir(dir, { recursive: true });
-      await fs.writeFile(filePath, content, 'utf-8');
-    } catch (error) {
-      console.error('Error writing file:', error);
-      throw error;
-    }
-  }
-
-  static async deleteFile(filePath: string): Promise<void> {
-    try {
-      await fs.unlink(filePath);
-    } catch (error) {
-      console.error('Error deleting file:', error);
-      throw error;
-    }
-  }
-
-  static async createDirectory(dirPath: string): Promise<void> {
+  async createDirectory(dirPath: string): Promise<void> {
     try {
       await fs.mkdir(dirPath, { recursive: true });
     } catch (error) {
-      console.error('Error creating directory:', error);
-      throw error;
+      console.error('Failed to create directory:', error);
+      throw new Error('Failed to create directory');
     }
   }
 
-  static async deleteDirectory(dirPath: string): Promise<void> {
+  async validatePath(dirPath: string): Promise<boolean> {
     try {
-      await fs.rm(dirPath, { recursive: true });
-    } catch (error) {
-      console.error('Error deleting directory:', error);
-      throw error;
+      const stats = await fs.stat(dirPath);
+      return stats.isDirectory();
+    } catch {
+      return false;
     }
   }
 
-  static async rename(oldPath: string, newPath: string): Promise<void> {
+  async ensureDirectoryExists(dirPath: string): Promise<void> {
     try {
-      await fs.rename(oldPath, newPath);
-    } catch (error) {
-      console.error('Error renaming path:', error);
-      throw error;
+      await fs.access(dirPath);
+    } catch {
+      await this.createDirectory(dirPath);
     }
   }
 }

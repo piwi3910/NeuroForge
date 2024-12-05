@@ -1,19 +1,30 @@
 import express from 'express';
 import { ProjectService } from '../services/ProjectService';
+import { AIArchitectService } from '../services/AIArchitect';
 import path from 'path';
 
 const router = express.Router();
 const projectService = new ProjectService(path.join(process.cwd(), 'projects'));
+const aiArchitect = new AIArchitectService();
 
 // Create a new project
 router.post('/', async (req, res) => {
   try {
     const { name, description, gitRepo } = req.body;
+    if (!name) {
+      return res.status(400).json({ error: 'Project name is required' });
+    }
+
+    console.log('Creating project:', { name, description, gitRepo });
     const project = await projectService.createProject(name, description, gitRepo);
+    console.log('Project created:', project);
     res.json(project);
   } catch (error) {
     console.error('Failed to create project:', error);
-    res.status(500).json({ error: 'Failed to create project' });
+    res.status(500).json({ 
+      error: error instanceof Error ? error.message : 'Failed to create project',
+      details: error
+    });
   }
 });
 
@@ -42,25 +53,26 @@ router.post('/:projectId/system-prompt', async (req, res) => {
   }
 });
 
-// Generate backlog items
-router.post('/:projectId/backlog/generate', async (req, res) => {
-  try {
-    const { projectId } = req.params;
-    const items = await projectService.generateBacklogItems(projectId);
-    res.json(items);
-  } catch (error) {
-    console.error('Failed to generate backlog items:', error);
-    res.status(500).json({ error: 'Failed to generate backlog items' });
-  }
-});
-
 // Chat with AI Architect
 router.post('/:projectId/chat', async (req, res) => {
   try {
-    const { projectId } = req.params;
     const { message } = req.body;
-    const response = await projectService.chatWithAI(projectId, message);
-    res.json(response);
+    if (!message) {
+      return res.status(400).json({ error: 'Message is required' });
+    }
+
+    const response = await aiArchitect.chat([
+      {
+        role: 'user',
+        content: message
+      }
+    ]);
+
+    res.json({
+      role: 'assistant',
+      content: response,
+      timestamp: new Date()
+    });
   } catch (error) {
     console.error('Failed to chat with AI:', error);
     res.status(500).json({ error: 'Failed to chat with AI' });
@@ -79,18 +91,6 @@ router.get('/:projectId', async (req, res) => {
   }
 });
 
-// Get project chat history
-router.get('/:projectId/chat', async (req, res) => {
-  try {
-    const { projectId } = req.params;
-    const chat = projectService.getProjectChat(projectId);
-    res.json(chat);
-  } catch (error) {
-    console.error('Failed to get project chat:', error);
-    res.status(500).json({ error: 'Failed to get project chat' });
-  }
-});
-
 // Commit project changes
 router.post('/:projectId/commit', async (req, res) => {
   try {
@@ -101,19 +101,6 @@ router.post('/:projectId/commit', async (req, res) => {
   } catch (error) {
     console.error('Failed to commit changes:', error);
     res.status(500).json({ error: 'Failed to commit changes' });
-  }
-});
-
-// Create feature branch
-router.post('/:projectId/branch', async (req, res) => {
-  try {
-    const { projectId } = req.params;
-    const { featureName } = req.body;
-    await projectService.createFeatureBranch(projectId, featureName);
-    res.json({ success: true });
-  } catch (error) {
-    console.error('Failed to create feature branch:', error);
-    res.status(500).json({ error: 'Failed to create feature branch' });
   }
 });
 

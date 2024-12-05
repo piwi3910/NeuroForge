@@ -1,23 +1,80 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { ChatMessage } from "@/types/api";
 import { apiClient } from "@/services/api";
+import { DirectoryBrowser } from "@/components/DirectoryBrowser";
 
 export default function ProjectPage() {
   const [projectPath, setProjectPath] = useState("");
+  const [gitUrl, setGitUrl] = useState("");
+  const [isGitRepo, setIsGitRepo] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: "assistant",
-      content: "Hello! I'm your AI Architect. I'll help you define your project and set up the architecture. Let's start by choosing a location for your project. Where would you like to store it?",
+      content: "Hello! I'm your AI Architect. Once you've set up your project repository, I'll help you define your project architecture.",
       timestamp: new Date()
     }
   ]);
   const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isBrowseOpen, setIsBrowseOpen] = useState(false);
+  const chatInputRef = useRef<HTMLInputElement>(null);
+
+  const handleBrowse = () => {
+    setIsBrowseOpen(true);
+  };
+
+  const handleSelectDirectory = (path: string) => {
+    setProjectPath(path);
+  };
+
+  const handleInitRepo = async () => {
+    if (!projectPath) {
+      alert("Please enter a project path");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      await apiClient.createProject(
+        projectPath.split("/").pop() || "new-project",
+        "New project",
+        undefined // No git URL for local init
+      );
+      setIsGitRepo(true);
+    } catch (error) {
+      console.error('Failed to initialize repository:', error);
+      alert("Failed to initialize repository. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCloneRepo = async () => {
+    if (!projectPath || !gitUrl) {
+      alert("Please enter both project path and git URL");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      await apiClient.createProject(
+        projectPath.split("/").pop() || "new-project",
+        "Cloned project",
+        gitUrl
+      );
+      setIsGitRepo(true);
+    } catch (error) {
+      console.error('Failed to clone repository:', error);
+      alert("Failed to clone repository. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleSendMessage = async () => {
-    if (!inputMessage.trim() || isLoading) return;
+    if (!inputMessage.trim() || isLoading || !isGitRepo) return;
 
     try {
       setIsLoading(true);
@@ -32,14 +89,20 @@ export default function ProjectPage() {
       setInputMessage("");
 
       // Get AI response
-      const response = await apiClient.chatWithAI("temp-project-id", inputMessage);
+      const response = await apiClient.chatWithAI("initial", inputMessage);
       
+      // Add AI response to chat
       setMessages(prev => [...prev, {
-        ...response,
+        role: "assistant",
+        content: response.content,
         timestamp: new Date(response.timestamp)
       }]);
+
+      // Focus the input after sending
+      chatInputRef.current?.focus();
     } catch (error) {
       console.error('Failed to get AI response:', error);
+      // Add error message to chat
       setMessages(prev => [...prev, {
         role: "assistant",
         content: "I apologize, but I encountered an error. Please try again.",
@@ -50,11 +113,6 @@ export default function ProjectPage() {
     }
   };
 
-  const handleBrowse = () => {
-    // TODO: Implement file browser dialog
-    console.log("Browse clicked");
-  };
-
   return (
     <main className="h-[calc(100vh-40px)] bg-[#1e1e1e] p-4 flex flex-col">
       <div className="flex-1 flex gap-4">
@@ -62,21 +120,57 @@ export default function ProjectPage() {
         <div className="w-1/3 bg-[#252526] rounded p-4 flex flex-col">
           <h2 className="text-xl font-semibold mb-4">Project Setup</h2>
           
-          <div className="mb-4">
-            <label className="block text-sm text-gray-400 mb-2">Project Location (Git Repository)</label>
+          <div className="space-y-4 mb-4">
+            <div>
+              <label className="block text-sm text-gray-400 mb-2">Local Project Path</label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={projectPath}
+                  onChange={(e) => setProjectPath(e.target.value)}
+                  placeholder="/path/to/your/project"
+                  className="flex-1 bg-[#1e1e1e] border border-[#3e3e3e] rounded px-3 py-2 text-sm"
+                />
+                <button 
+                  onClick={handleBrowse}
+                  className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+                >
+                  Browse
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <div className="flex-1">
+                <label className="block text-sm text-gray-400 mb-2">Git Repository URL (Optional)</label>
+                <input
+                  type="text"
+                  value={gitUrl}
+                  onChange={(e) => setGitUrl(e.target.value)}
+                  placeholder="https://github.com/user/repo.git"
+                  className="w-full bg-[#1e1e1e] border border-[#3e3e3e] rounded px-3 py-2 text-sm"
+                />
+              </div>
+            </div>
+
             <div className="flex gap-2">
-              <input
-                type="text"
-                value={projectPath}
-                onChange={(e) => setProjectPath(e.target.value)}
-                placeholder="/path/to/your/project"
-                className="flex-1 bg-[#1e1e1e] border border-[#3e3e3e] rounded px-3 py-2 text-sm"
-              />
-              <button 
-                onClick={handleBrowse}
-                className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+              <button
+                onClick={handleInitRepo}
+                disabled={!projectPath || isLoading}
+                className={`flex-1 px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm ${
+                  (!projectPath || isLoading) ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
               >
-                Browse
+                Initialize Local Repository
+              </button>
+              <button
+                onClick={handleCloneRepo}
+                disabled={!projectPath || !gitUrl || isLoading}
+                className={`flex-1 px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm ${
+                  (!projectPath || !gitUrl || isLoading) ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
+              >
+                Clone Repository
               </button>
             </div>
           </div>
@@ -86,12 +180,20 @@ export default function ProjectPage() {
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-gray-400">Status:</span>
-                <span className="text-yellow-500">Defining</span>
+                <span className={isGitRepo ? "text-green-500" : "text-yellow-500"}>
+                  {isGitRepo ? "Ready" : "Not Initialized"}
+                </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-400">Git Repository:</span>
+                <span className="text-gray-400">Local Path:</span>
                 <span>{projectPath || "Not set"}</span>
               </div>
+              {gitUrl && (
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Remote URL:</span>
+                  <span>{gitUrl}</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -118,26 +220,34 @@ export default function ProjectPage() {
 
           <div className="flex gap-2">
             <input
+              ref={chatInputRef}
               type="text"
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
               onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
-              placeholder="Describe your project..."
+              placeholder={isGitRepo ? "Describe your project..." : "Please set up your project repository first"}
               className="flex-1 bg-[#1e1e1e] border border-[#3e3e3e] rounded px-3 py-2"
-              disabled={isLoading}
+              disabled={isLoading || !isGitRepo}
             />
             <button
               onClick={handleSendMessage}
               className={`px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 ${
-                isLoading ? 'opacity-50 cursor-not-allowed' : ''
+                (isLoading || !isGitRepo) ? 'opacity-50 cursor-not-allowed' : ''
               }`}
-              disabled={isLoading}
+              disabled={isLoading || !isGitRepo}
             >
               {isLoading ? 'Sending...' : 'Send'}
             </button>
           </div>
         </div>
       </div>
+
+      <DirectoryBrowser
+        isOpen={isBrowseOpen}
+        onClose={() => setIsBrowseOpen(false)}
+        onSelect={handleSelectDirectory}
+        initialPath="/home/piwi/Git/NeuroForge/projects"
+      />
     </main>
   );
 }
