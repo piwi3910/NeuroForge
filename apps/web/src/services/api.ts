@@ -8,6 +8,7 @@ class ApiClientImpl implements ApiClient {
     }
 
     private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+        console.log('Making request to:', `${this.baseUrl}${endpoint}`);
         const response = await fetch(`${this.baseUrl}${endpoint}`, {
             ...options,
             headers: {

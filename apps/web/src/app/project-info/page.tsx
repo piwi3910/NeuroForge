@@ -49,12 +49,12 @@ export default function ProjectPage() {
     }
   }, [isGitRepo]);
 
-  // Load saved states when project is initialized
+  // Load saved states when component mounts or when project path changes
   useEffect(() => {
-    if (isGitRepo) {
+    if (projectPath) {
       loadSavedStates();
     }
-  }, [isGitRepo]);
+  }, [projectPath]);
 
   const loadSavedStates = async () => {
     try {
@@ -189,6 +189,7 @@ export default function ProjectPage() {
     try {
       const project = await apiClient.loadProjectState("initial", stateName);
       setProjectDetails(project.details);
+      setIsGitRepo(true);
       setIsLoadDialogOpen(false);
     } catch (error) {
       console.error('Failed to load project state:', error);
@@ -335,9 +336,9 @@ export default function ProjectPage() {
               </button>
               <button
                 onClick={() => setIsLoadDialogOpen(true)}
-                disabled={!isGitRepo || isLoading || savedStates.length === 0}
+                disabled={isLoading || savedStates.length === 0}
                 className={`flex-1 px-3 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 text-sm ${
-                  (!isGitRepo || isLoading || savedStates.length === 0) ? 'opacity-50 cursor-not-allowed' : ''
+                  (isLoading || savedStates.length === 0) ? 'opacity-50 cursor-not-allowed' : ''
                 }`}
               >
                 Load State

@@ -1,5 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
+import { v4 as uuidv4 } from 'uuid';
 import { GitService } from './GitService';
 import { AIArchitectService } from './AIArchitect';
 import { dbService } from './DatabaseService';
@@ -36,9 +37,12 @@ export class ProjectService {
             // Create initial commit
             await this.gitService.createInitialCommit(projectPath);
 
+            // Generate unique project ID
+            const projectId = uuidv4();
+
             // Save project to database
-            dbService.createProject('initial', name, projectPath, description, gitRepo);
-            const projectDetails = dbService.getProjectDetails('initial');
+            dbService.createProject(projectId, name, projectPath, description, gitRepo);
+            const projectDetails = dbService.getProjectDetails(projectId);
 
             if (!projectDetails) {
                 throw new Error('Failed to create project details');
@@ -48,100 +52,6 @@ export class ProjectService {
             return projectDetails;
         } catch (error) {
             console.error('Failed to create project:', error);
-            throw error;
-        }
-    }
-
-    async saveProjectState(projectId: string, saveName: string): Promise<void> {
-        try {
-            const project = dbService.getProjectDetails(projectId);
-            if (!project) {
-                throw new Error('Project not found');
-            }
-
-            // Create saves directory if it doesn't exist
-            const savesDir = path.join(project.path, '.saves');
-            await fs.mkdir(savesDir, { recursive: true });
-
-            // Save project state
-            const saveData = {
-                project,
-                messages: dbService.getChatMessages(projectId),
-                timestamp: new Date()
-            };
-
-            await fs.writeFile(
-                path.join(savesDir, `${saveName}.json`),
-                JSON.stringify(saveData, null, 2)
-            );
-
-            // Create git tag for the save
-            await this.gitService.commitChanges(project.path, `Save state: ${saveName}`);
-            await this.gitService.createTag(project.path, `save-${saveName}`);
-        } catch (error) {
-            console.error('Failed to save project state:', error);
-            throw error;
-        }
-    }
-
-    async loadProjectState(projectId: string, saveName: string): Promise<ProjectWithDetails> {
-        try {
-            const project = dbService.getProjectDetails(projectId);
-            if (!project) {
-                throw new Error('Project not found');
-            }
-
-            // Load save file
-            const savePath = path.join(project.path, '.saves', `${saveName}.json`);
-            const saveContent = await fs.readFile(savePath, 'utf-8');
-            const saveData = JSON.parse(saveContent);
-
-            // Restore project state in database
-            dbService.deleteProject(projectId);
-            dbService.clearChatHistory(projectId);
-
-            dbService.createProject(
-                projectId,
-                saveData.project.name,
-                saveData.project.path,
-                saveData.project.description,
-                saveData.project.git_repo
-            );
-
-            // Restore chat messages
-            for (const message of saveData.messages) {
-                dbService.saveChatMessage(projectId, message.role, message.content);
-            }
-
-            // Checkout git tag
-            await this.gitService.checkoutTag(project.path, `save-${saveName}`);
-
-            return dbService.getProjectDetails(projectId) as ProjectWithDetails;
-        } catch (error) {
-            console.error('Failed to load project state:', error);
-            throw error;
-        }
-    }
-
-    async listProjectSaves(projectId: string): Promise<string[]> {
-        try {
-            const project = dbService.getProjectDetails(projectId);
-            if (!project) {
-                throw new Error('Project not found');
-            }
-
-            const savesDir = path.join(project.path, '.saves');
-            try {
-                const files = await fs.readdir(savesDir);
-                return files
-                    .filter(file => file.endsWith('.json'))
-                    .map(file => file.replace('.json', ''));
-            } catch (error) {
-                // Directory doesn't exist, return empty list
-                return [];
-            }
-        } catch (error) {
-            console.error('Failed to list project saves:', error);
             throw error;
         }
     }
@@ -252,6 +162,100 @@ export class ProjectService {
             await this.gitService.commitChanges(project.path, message);
         } catch (error) {
             console.error('Failed to commit changes:', error);
+            throw error;
+        }
+    }
+
+    async saveProjectState(projectId: string, saveName: string): Promise<void> {
+        try {
+            const project = dbService.getProjectDetails(projectId);
+            if (!project) {
+                throw new Error('Project not found');
+            }
+
+            // Create saves directory if it doesn't exist
+            const savesDir = path.join(project.path, '.saves');
+            await fs.mkdir(savesDir, { recursive: true });
+
+            // Save project state
+            const saveData = {
+                project,
+                messages: dbService.getChatMessages(projectId),
+                timestamp: new Date()
+            };
+
+            await fs.writeFile(
+                path.join(savesDir, `${saveName}.json`),
+                JSON.stringify(saveData, null, 2)
+            );
+
+            // Create git tag for the save
+            await this.gitService.commitChanges(project.path, `Save state: ${saveName}`);
+            await this.gitService.createTag(project.path, `save-${saveName}`);
+        } catch (error) {
+            console.error('Failed to save project state:', error);
+            throw error;
+        }
+    }
+
+    async loadProjectState(projectId: string, saveName: string): Promise<ProjectWithDetails> {
+        try {
+            const project = dbService.getProjectDetails(projectId);
+            if (!project) {
+                throw new Error('Project not found');
+            }
+
+            // Load save file
+            const savePath = path.join(project.path, '.saves', `${saveName}.json`);
+            const saveContent = await fs.readFile(savePath, 'utf-8');
+            const saveData = JSON.parse(saveContent);
+
+            // Restore project state in database
+            dbService.deleteProject(projectId);
+            dbService.clearChatHistory(projectId);
+
+            dbService.createProject(
+                projectId,
+                saveData.project.name,
+                saveData.project.path,
+                saveData.project.description,
+                saveData.project.git_repo
+            );
+
+            // Restore chat messages
+            for (const message of saveData.messages) {
+                dbService.saveChatMessage(projectId, message.role, message.content);
+            }
+
+            // Checkout git tag
+            await this.gitService.checkoutTag(project.path, `save-${saveName}`);
+
+            return dbService.getProjectDetails(projectId) as ProjectWithDetails;
+        } catch (error) {
+            console.error('Failed to load project state:', error);
+            throw error;
+        }
+    }
+
+    async listProjectSaves(projectId: string): Promise<string[]> {
+        try {
+            const project = dbService.getProjectDetails(projectId);
+            if (!project) {
+                throw new Error('Project not found');
+            }
+
+            const savesDir = path.join(project.path, '.saves');
+            try {
+                const files = await fs.readdir(savesDir);
+                return files
+                    .filter(file => file.endsWith('.json'))
+                    .map(file => file.replace('.json', ''));
+            } catch (error) {
+                // Directory doesn't exist, return empty list
+                return [];
+            }
+        } catch (error) {
+            console.error('Failed to list project saves:', error);
             throw error;
         }
     }

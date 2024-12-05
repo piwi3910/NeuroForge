@@ -1,78 +1,97 @@
 import fs from 'fs/promises';
 import path from 'path';
 
-interface BaseEntry {
-  path: string;
-  name: string;
+export class FileSystem {
+    async listDirectory(dirPath: string) {
+        try {
+            const entries = await fs.readdir(dirPath, { withFileTypes: true });
+            return entries.map(entry => ({
+                name: entry.name,
+                path: path.join(dirPath, entry.name),
+                type: entry.isDirectory() ? 'directory' : 'file'
+            }));
+        } catch (error) {
+            console.error('Failed to list directory:', error);
+            throw error;
+        }
+    }
+
+    async createDirectory(dirPath: string) {
+        try {
+            await fs.mkdir(dirPath, { recursive: true });
+        } catch (error) {
+            console.error('Failed to create directory:', error);
+            throw error;
+        }
+    }
+
+    async deleteDirectory(dirPath: string) {
+        try {
+            await fs.rm(dirPath, { recursive: true, force: true });
+        } catch (error) {
+            console.error('Failed to delete directory:', error);
+            throw error;
+        }
+    }
+
+    async readFile(filePath: string) {
+        try {
+            const content = await fs.readFile(filePath, 'utf-8');
+            return content;
+        } catch (error) {
+            console.error('Failed to read file:', error);
+            throw error;
+        }
+    }
+
+    async writeFile(filePath: string, content: string) {
+        try {
+            // Create directory if it doesn't exist
+            const dir = path.dirname(filePath);
+            await fs.mkdir(dir, { recursive: true });
+            
+            await fs.writeFile(filePath, content, 'utf-8');
+        } catch (error) {
+            console.error('Failed to write file:', error);
+            throw error;
+        }
+    }
+
+    async deleteFile(filePath: string) {
+        try {
+            await fs.unlink(filePath);
+        } catch (error) {
+            console.error('Failed to delete file:', error);
+            throw error;
+        }
+    }
+
+    async exists(path: string) {
+        try {
+            await fs.access(path);
+            return true;
+        } catch {
+            return false;
+        }
+    }
+
+    async isDirectory(path: string) {
+        try {
+            const stats = await fs.stat(path);
+            return stats.isDirectory();
+        } catch {
+            return false;
+        }
+    }
+
+    async isFile(path: string) {
+        try {
+            const stats = await fs.stat(path);
+            return stats.isFile();
+        } catch {
+            return false;
+        }
+    }
 }
 
-interface DirectoryEntry extends BaseEntry {
-  type: 'directory';
-}
-
-interface ParentEntry extends BaseEntry {
-  type: 'parent';
-}
-
-type FileSystemEntry = DirectoryEntry | ParentEntry;
-
-export class FileSystemService {
-  async listDirectories(dirPath: string): Promise<FileSystemEntry[]> {
-    try {
-      // Normalize and resolve the path
-      const normalizedPath = path.resolve(dirPath);
-      
-      // Get directory contents
-      const contents = await fs.readdir(normalizedPath, { withFileTypes: true });
-      
-      // Filter for directories only and map to response format
-      const directories: FileSystemEntry[] = contents
-        .filter(dirent => dirent.isDirectory())
-        .map(dirent => ({
-          path: path.join(normalizedPath, dirent.name),
-          name: dirent.name,
-          type: 'directory'
-        }));
-
-      // Add parent directory if not at root
-      if (normalizedPath !== '/') {
-        directories.unshift({
-          path: path.dirname(normalizedPath),
-          name: '..',
-          type: 'parent'
-        });
-      }
-
-      return directories;
-    } catch (error) {
-      console.error('Failed to list directories:', error);
-      throw new Error('Failed to list directories');
-    }
-  }
-
-  async createDirectory(dirPath: string): Promise<void> {
-    try {
-      await fs.mkdir(dirPath, { recursive: true });
-    } catch (error) {
-      console.error('Failed to create directory:', error);
-      throw new Error('Failed to create directory');
-    }
-  }
-
-  async validatePath(dirPath: string): Promise<boolean> {
-    try {
-      const stats = await fs.stat(dirPath);
-      return stats.isDirectory();
-    } catch {
-      return false;
-    }
-  }
-
-  async ensureDirectoryExists(dirPath: string): Promise<void> {
-    try {
-      await fs.access(dirPath);
-    } catch {
-      await this.createDirectory(dirPath);
-    }
-  }
-}
+export const fileSystem = new FileSystem();
