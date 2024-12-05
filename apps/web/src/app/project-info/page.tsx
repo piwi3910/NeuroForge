@@ -8,6 +8,7 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Dialog } from "@/components/Dialog";
 
 export default function ProjectPage() {
+  const [projectId, setProjectId] = useState<string | null>(null);
   const [projectPath, setProjectPath] = useState("");
   const [gitUrl, setGitUrl] = useState("");
   const [isGitRepo, setIsGitRepo] = useState(false);
@@ -44,26 +45,22 @@ export default function ProjectPage() {
 
   // Start chat when repository is initialized
   useEffect(() => {
-    if (isGitRepo) {
+    if (isGitRepo && projectId) {
       handleStartChat();
     }
-  }, [isGitRepo]);
+  }, [isGitRepo, projectId]);
 
-  // Load saved states when component mounts
+  // Load saved states when component mounts or project ID changes
   useEffect(() => {
-    loadSavedStates();
-  }, []);
-
-  // Also load saved states when project path changes
-  useEffect(() => {
-    if (projectPath) {
+    if (projectId) {
       loadSavedStates();
     }
-  }, [projectPath]);
+  }, [projectId]);
 
   const loadSavedStates = async () => {
+    if (!projectId) return;
     try {
-      const states = await apiClient.listProjectSaves("initial");
+      const states = await apiClient.listProjectSaves(projectId);
       console.log('Loaded saved states:', states);
       setSavedStates(states);
     } catch (error) {
@@ -72,9 +69,10 @@ export default function ProjectPage() {
   };
 
   const handleStartChat = async () => {
+    if (!projectId) return;
     try {
       setIsLoading(true);
-      const response = await apiClient.chatWithAI("initial", "start");
+      const response = await apiClient.chatWithAI(projectId, "start");
       setMessages([{
         role: "assistant",
         content: response.content,
@@ -101,12 +99,13 @@ export default function ProjectPage() {
   };
 
   const handleReset = async () => {
-    if (!projectPath) return;
+    if (!projectId) return;
 
     setIsLoading(true);
     try {
-      await apiClient.resetProject("initial");
+      await apiClient.resetProject(projectId);
       // Reset all state
+      setProjectId(null);
       setProjectPath("");
       setGitUrl("");
       setIsGitRepo(false);
@@ -137,13 +136,17 @@ export default function ProjectPage() {
 
     setIsLoading(true);
     try {
-      await apiClient.createProject(
+      const project = await apiClient.createProject(
         projectPath.split("/").pop() || "new-project",
         "New project",
         undefined // No git URL for local init
       );
+      setProjectId(project.id);
       setIsGitRepo(true);
       setGitUrl(""); // Clear git URL since we've initialized locally
+      if (project.details) {
+        setProjectDetails(project.details);
+      }
     } catch (error) {
       console.error('Failed to initialize repository:', error);
       alert("Failed to initialize repository. Please try again.");
@@ -159,12 +162,16 @@ export default function ProjectPage() {
 
     setIsLoading(true);
     try {
-      await apiClient.createProject(
+      const project = await apiClient.createProject(
         projectPath.split("/").pop() || "new-project",
         "Cloned project",
         gitUrl
       );
+      setProjectId(project.id);
       setIsGitRepo(true);
+      if (project.details) {
+        setProjectDetails(project.details);
+      }
     } catch (error) {
       console.error('Failed to clone repository:', error);
       alert("Failed to clone repository. Please try again.");
@@ -174,11 +181,11 @@ export default function ProjectPage() {
   };
 
   const handleSaveState = async () => {
-    if (!saveName) return;
+    if (!saveName || !projectId) return;
 
     setIsLoading(true);
     try {
-      await apiClient.saveProjectState("initial", saveName);
+      await apiClient.saveProjectState(projectId, saveName);
       await loadSavedStates();
       setIsSaveDialogOpen(false);
       setSaveName("");
@@ -191,9 +198,10 @@ export default function ProjectPage() {
   };
 
   const handleLoadState = async (stateName: string) => {
+    if (!projectId) return;
     setIsLoading(true);
     try {
-      const project = await apiClient.loadProjectState("initial", stateName);
+      const project = await apiClient.loadProjectState(projectId, stateName);
       setProjectDetails(project.details);
       setIsGitRepo(true);
       setIsLoadDialogOpen(false);
@@ -206,7 +214,7 @@ export default function ProjectPage() {
   };
 
   const handleSendMessage = async () => {
-    if (!inputMessage.trim() || isLoading || !isGitRepo) return;
+    if (!inputMessage.trim() || isLoading || !isGitRepo || !projectId) return;
 
     try {
       setIsLoading(true);
@@ -221,7 +229,7 @@ export default function ProjectPage() {
       setInputMessage("");
 
       // Get AI response
-      const response = await apiClient.chatWithAI("initial", inputMessage);
+      const response = await apiClient.chatWithAI(projectId, inputMessage);
       
       // Update project details if provided
       if (response.details) {

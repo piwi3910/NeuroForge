@@ -1,7 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import OpenAI from 'openai';
-import { ChatCompletionMessageParam, ChatCompletionSystemMessageParam, ChatCompletionUserMessageParam, ChatCompletionAssistantMessageParam } from 'openai/resources/chat';
+import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -82,14 +82,14 @@ Please provide your response in valid JSON format with the following structure:
 
       // Prepare messages for OpenAI
       const openAiMessages: ChatCompletionMessageParam[] = [
-        { role: "system", content: systemPrompt + "\n" + jsonInstructions } as ChatCompletionSystemMessageParam,
-        ...messages.map(msg => {
-          if (msg.role === 'assistant') {
-            return { role: 'assistant', content: msg.content } as ChatCompletionAssistantMessageParam;
-          } else {
-            return { role: 'user', content: msg.content } as ChatCompletionUserMessageParam;
-          }
-        })
+        {
+          role: "system",
+          content: systemPrompt + "\n" + jsonInstructions
+        },
+        ...messages.map(msg => ({
+          role: msg.role,
+          content: msg.content
+        }))
       ];
 
       console.log('Sending messages to OpenAI:', openAiMessages);
@@ -144,11 +144,11 @@ Please provide your response in valid JSON format with the following structure:
           {
             role: "system",
             content: "You are an AI system prompt generator. Your task is to create a detailed system prompt based on the project description provided."
-          } as ChatCompletionSystemMessageParam,
+          },
           {
             role: "user",
             content: `Generate a system prompt for this project: ${description}`
-          } as ChatCompletionUserMessageParam
+          }
         ],
         temperature: 0.7,
         max_tokens: 1000
