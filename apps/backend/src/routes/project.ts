@@ -31,13 +31,55 @@ router.post('/', async (req, res) => {
   }
 });
 
+// Save project state
+router.post('/:projectId/save', async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const { name } = req.body;
+    if (!name) {
+      return res.status(400).json({ error: 'Save name is required' });
+    }
+    await projectService.saveProjectState(projectId, name);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Failed to save project state:', error);
+    res.status(500).json({ error: 'Failed to save project state' });
+  }
+});
+
+// Load project state
+router.post('/:projectId/load', async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const { name } = req.body;
+    if (!name) {
+      return res.status(400).json({ error: 'Save name is required' });
+    }
+    const project = await projectService.loadProjectState(projectId, name);
+    res.json(project);
+  } catch (error) {
+    console.error('Failed to load project state:', error);
+    res.status(500).json({ error: 'Failed to load project state' });
+  }
+});
+
+// List saved states
+router.get('/:projectId/saves', async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const saves = await projectService.listProjectSaves(projectId);
+    res.json(saves);
+  } catch (error) {
+    console.error('Failed to list project saves:', error);
+    res.status(500).json({ error: 'Failed to list project saves' });
+  }
+});
+
 // Reset project
 router.delete('/:projectId', async (req, res) => {
   try {
     const { projectId } = req.params;
     await projectService.resetProject(projectId);
-    // Clear chat history
-    aiArchitect.clearHistory(projectId);
     res.json({ success: true });
   } catch (error) {
     console.error('Failed to reset project:', error);

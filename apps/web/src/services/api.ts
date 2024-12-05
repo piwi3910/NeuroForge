@@ -1,229 +1,90 @@
-import { ProjectConfig, BacklogItem, AIResponse } from '../types/api';
+import { ApiClient, ChatResponse, Project } from '@/types/api';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+class ApiClientImpl implements ApiClient {
+    private baseUrl: string;
 
-interface DirectoryEntry {
-  path: string;
-  name: string;
-  type: 'directory' | 'parent';
-}
+    constructor(baseUrl: string) {
+        this.baseUrl = baseUrl;
+    }
 
-interface RawAIResponse {
-  message?: string;
-  content?: string;
-  timestamp: string;
-  details?: AIResponse['details'];
-}
-
-class ApiError extends Error {
-  constructor(public status: number, message: string) {
-    super(message);
-    this.name = 'ApiError';
-  }
-}
-
-class ApiClient {
-  private async request<T>(
-    endpoint: string,
-    options: RequestInit = {}
-  ): Promise<T> {
-    try {
-      const url = `${API_BASE_URL}${endpoint}`;
-      console.log(`Making API request to: ${url}`, {
-        method: options.method || 'GET',
-        headers: options.headers,
-        body: options.body ? JSON.parse(options.body as string) : undefined
-      });
-
-      const response = await fetch(url, {
-        ...options,
-        headers: {
-          'Content-Type': 'application/json',
-          ...options.headers,
-        },
-      });
-
-      if (!response.ok) {
-        let errorMessage = 'API request failed';
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.error || errorMessage;
-        } catch {
-          // If parsing JSON fails, use status text
-          errorMessage = response.statusText || errorMessage;
-        }
-        console.error('API Error:', {
-          status: response.status,
-          statusText: response.statusText,
-          message: errorMessage
+    private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+        const response = await fetch(`${this.baseUrl}${endpoint}`, {
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers,
+            },
         });
-        throw new ApiError(response.status, errorMessage);
-      }
 
-      const data = await response.json();
-      console.log('API response:', data);
-      return data;
-    } catch (error) {
-      if (error instanceof ApiError) {
-        throw error;
-      }
-      console.error('API request error:', error);
-      throw new Error(
-        error instanceof Error 
-          ? `API request failed: ${error.message}`
-          : 'Unknown API error occurred'
-      );
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'API request failed');
+        }
+
+        return response.json();
     }
-  }
 
-  // File system endpoints
-  async listDirectories(path: string): Promise<DirectoryEntry[]> {
-    return this.request(`/files/browse?path=${encodeURIComponent(path)}`);
-  }
-
-  async createDirectory(path: string): Promise<{ success: boolean }> {
-    return this.request('/files/directory', {
-      method: 'POST',
-      body: JSON.stringify({ path })
-    });
-  }
-
-  // Project endpoints
-  async createProject(
-    name: string,
-    description: string,
-    gitRepo?: string
-  ): Promise<ProjectConfig> {
-    return this.request('/projects', {
-      method: 'POST',
-      body: JSON.stringify({ name, description, gitRepo }),
-    });
-  }
-
-  async resetProject(projectId: string): Promise<{ success: boolean }> {
-    return this.request(`/projects/${projectId}`, {
-      method: 'DELETE'
-    });
-  }
-
-  async updateProjectDescription(
-    projectId: string,
-    description: string
-  ): Promise<ProjectConfig> {
-    return this.request(`/projects/${projectId}/description`, {
-      method: 'PUT',
-      body: JSON.stringify({ description }),
-    });
-  }
-
-  async generateSystemPrompt(projectId: string): Promise<ProjectConfig> {
-    return this.request(`/projects/${projectId}/system-prompt`, {
-      method: 'POST',
-    });
-  }
-
-  async chatWithAI(projectId: string, message: string): Promise<AIResponse> {
-    try {
-      const response = await this.request<RawAIResponse>(`/projects/${projectId}/chat`, {
-        method: 'POST',
-        body: JSON.stringify({ message }),
-      });
-
-      // Convert the response to match the AIResponse interface
-      return {
-        role: 'assistant',
-        content: response.message || response.content || '', // Handle both formats and ensure string
-        timestamp: new Date(response.timestamp),
-        details: response.details
-      };
-    } catch (error) {
-      console.error('Chat with AI failed:', error);
-      throw new Error(
-        error instanceof Error 
-          ? `Chat failed: ${error.message}`
-          : 'Failed to communicate with AI'
-      );
+    async createProject(name: string, description: string, gitRepo?: string): Promise<Project> {
+        return this.request<Project>('/projects', {
+            method: 'POST',
+            body: JSON.stringify({ name, description, gitRepo }),
+        });
     }
-  }
 
-  async getProject(projectId: string): Promise<ProjectConfig> {
-    return this.request(`/projects/${projectId}`);
-  }
+    async resetProject(projectId: string): Promise<void> {
+        await this.request(`/projects/${projectId}`, {
+            method: 'DELETE',
+        });
+    }
 
-  async commitProjectChanges(
-    projectId: string,
-    message: string
-  ): Promise<{ success: boolean }> {
-    return this.request(`/projects/${projectId}/commit`, {
-      method: 'POST',
-      body: JSON.stringify({ message }),
-    });
-  }
+    async updateProjectDescription(projectId: string, description: string): Promise<Project> {
+        return this.request<Project>(`/projects/${projectId}/description`, {
+            method: 'PUT',
+            body: JSON.stringify({ description }),
+        });
+    }
 
-  // Backlog endpoints
-  async createBacklogItem(
-    projectId: string,
-    item: Partial<BacklogItem>
-  ): Promise<BacklogItem> {
-    return this.request('/backlog', {
-      method: 'POST',
-      body: JSON.stringify({ projectId, ...item }),
-    });
-  }
+    async generateSystemPrompt(projectId: string): Promise<Project> {
+        return this.request<Project>(`/projects/${projectId}/system-prompt`, {
+            method: 'POST',
+        });
+    }
 
-  async getBacklogItems(projectId: string): Promise<BacklogItem[]> {
-    return this.request(`/backlog?projectId=${projectId}`);
-  }
+    async chatWithAI(projectId: string, message: string): Promise<ChatResponse> {
+        return this.request<ChatResponse>(`/projects/${projectId}/chat`, {
+            method: 'POST',
+            body: JSON.stringify({ message }),
+        });
+    }
 
-  async updateBacklogItem(
-    itemId: string,
-    update: Partial<BacklogItem>
-  ): Promise<BacklogItem> {
-    return this.request(`/backlog/${itemId}`, {
-      method: 'PUT',
-      body: JSON.stringify(update),
-    });
-  }
+    async getProject(projectId: string): Promise<Project> {
+        return this.request<Project>(`/projects/${projectId}`);
+    }
 
-  async updateItemStatus(
-    itemId: string,
-    status: BacklogItem['status']
-  ): Promise<BacklogItem> {
-    return this.request(`/backlog/${itemId}/status`, {
-      method: 'PUT',
-      body: JSON.stringify({ status }),
-    });
-  }
+    async commitProjectChanges(projectId: string, message: string): Promise<void> {
+        await this.request(`/projects/${projectId}/commit`, {
+            method: 'POST',
+            body: JSON.stringify({ message }),
+        });
+    }
 
-  async deleteBacklogItem(itemId: string): Promise<{ success: boolean }> {
-    return this.request(`/backlog/${itemId}`, {
-      method: 'DELETE',
-    });
-  }
+    async saveProjectState(projectId: string, saveName: string): Promise<void> {
+        await this.request(`/projects/${projectId}/save`, {
+            method: 'POST',
+            body: JSON.stringify({ name: saveName }),
+        });
+    }
 
-  async getItemHierarchy(projectId: string): Promise<{
-    epics: BacklogItem[];
-    stories: Record<string, BacklogItem[]>;
-    tasks: Record<string, BacklogItem[]>;
-  }> {
-    return this.request(`/backlog/hierarchy/${projectId}`);
-  }
+    async loadProjectState(projectId: string, saveName: string): Promise<Project> {
+        return this.request<Project>(`/projects/${projectId}/load`, {
+            method: 'POST',
+            body: JSON.stringify({ name: saveName }),
+        });
+    }
 
-  async generateBacklogItems(
-    projectId: string,
-    projectDescription: string,
-    systemPrompt: string
-  ): Promise<BacklogItem[]> {
-    return this.request('/backlog/generate', {
-      method: 'POST',
-      body: JSON.stringify({
-        projectId,
-        projectDescription,
-        systemPrompt,
-      }),
-    });
-  }
+    async listProjectSaves(projectId: string): Promise<string[]> {
+        return this.request<string[]>(`/projects/${projectId}/saves`);
+    }
 }
 
-// Export a singleton instance
-export const apiClient = new ApiClient();
+export const apiClient = new ApiClientImpl(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api');

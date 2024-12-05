@@ -5,6 +5,7 @@ import { ChatMessage, ProjectDetails } from "@/types/api";
 import { apiClient } from "@/services/api";
 import { DirectoryBrowser } from "@/components/DirectoryBrowser";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { Dialog } from "@/components/Dialog";
 
 export default function ProjectPage() {
   const [projectPath, setProjectPath] = useState("");
@@ -25,6 +26,10 @@ export default function ProjectPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isBrowseOpen, setIsBrowseOpen] = useState(false);
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
+  const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
+  const [isLoadDialogOpen, setIsLoadDialogOpen] = useState(false);
+  const [saveName, setSaveName] = useState("");
+  const [savedStates, setSavedStates] = useState<string[]>([]);
   const chatInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -43,6 +48,22 @@ export default function ProjectPage() {
       handleStartChat();
     }
   }, [isGitRepo]);
+
+  // Load saved states when project is initialized
+  useEffect(() => {
+    if (isGitRepo) {
+      loadSavedStates();
+    }
+  }, [isGitRepo]);
+
+  const loadSavedStates = async () => {
+    try {
+      const states = await apiClient.listProjectSaves("initial");
+      setSavedStates(states);
+    } catch (error) {
+      console.error('Failed to load saved states:', error);
+    }
+  };
 
   const handleStartChat = async () => {
     try {
@@ -94,6 +115,7 @@ export default function ProjectPage() {
         }
       });
       setMessages([]);
+      setSavedStates([]);
     } catch (error) {
       console.error('Failed to reset project:', error);
       alert("Failed to reset project. Please try again.");
@@ -140,6 +162,37 @@ export default function ProjectPage() {
     } catch (error) {
       console.error('Failed to clone repository:', error);
       alert("Failed to clone repository. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSaveState = async () => {
+    if (!saveName) return;
+
+    setIsLoading(true);
+    try {
+      await apiClient.saveProjectState("initial", saveName);
+      await loadSavedStates();
+      setIsSaveDialogOpen(false);
+      setSaveName("");
+    } catch (error) {
+      console.error('Failed to save project state:', error);
+      alert("Failed to save project state. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleLoadState = async (stateName: string) => {
+    setIsLoading(true);
+    try {
+      const project = await apiClient.loadProjectState("initial", stateName);
+      setProjectDetails(project.details);
+      setIsLoadDialogOpen(false);
+    } catch (error) {
+      console.error('Failed to load project state:', error);
+      alert("Failed to load project state. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -269,6 +322,29 @@ export default function ProjectPage() {
                 Clone Repository
               </button>
             </div>
+
+            {isGitRepo && (
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setIsSaveDialogOpen(true)}
+                  disabled={isLoading}
+                  className={`flex-1 px-3 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 text-sm ${
+                    isLoading ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                >
+                  Save State
+                </button>
+                <button
+                  onClick={() => setIsLoadDialogOpen(true)}
+                  disabled={isLoading || savedStates.length === 0}
+                  className={`flex-1 px-3 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 text-sm ${
+                    (isLoading || savedStates.length === 0) ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                >
+                  Load State
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="flex-1 bg-[#1e1e1e] rounded p-3 mb-4 overflow-auto">
@@ -417,6 +493,76 @@ export default function ProjectPage() {
         title="Reset Project"
         message="Are you sure? This will reset and delete your project."
       />
+
+      <Dialog
+        isOpen={isSaveDialogOpen}
+        onClose={() => {
+          setIsSaveDialogOpen(false);
+          setSaveName("");
+        }}
+        title="Save Project State"
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm text-gray-400 mb-2">Save Name</label>
+            <input
+              type="text"
+              value={saveName}
+              onChange={(e) => setSaveName(e.target.value)}
+              placeholder="Enter a name for this save"
+              className="w-full bg-[#1e1e1e] border border-[#3e3e3e] rounded px-3 py-2"
+            />
+          </div>
+          <div className="flex justify-end gap-2">
+            <button
+              onClick={() => {
+                setIsSaveDialogOpen(false);
+                setSaveName("");
+              }}
+              className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSaveState}
+              disabled={!saveName}
+              className={`px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 ${
+                !saveName ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
+            >
+              Save
+            </button>
+          </div>
+        </div>
+      </Dialog>
+
+      <Dialog
+        isOpen={isLoadDialogOpen}
+        onClose={() => setIsLoadDialogOpen(false)}
+        title="Load Project State"
+      >
+        <div className="space-y-4">
+          <div className="max-h-60 overflow-auto">
+            {savedStates.map((state) => (
+              <button
+                key={state}
+                onClick={() => handleLoadState(state)}
+                className="w-full text-left px-4 py-2 hover:bg-[#2e2e2e] rounded"
+              >
+                {state}
+              </button>
+            ))}
+          </div>
+          <div className="flex justify-end">
+            <button
+              onClick={() => setIsLoadDialogOpen(false)}
+              className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </Dialog>
     </main>
   );
 }

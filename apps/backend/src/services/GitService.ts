@@ -1,4 +1,4 @@
-import simpleGit, { SimpleGit } from 'simple-git';
+import simpleGit, { SimpleGit, StatusResult, LogResult } from 'simple-git';
 
 export class GitService {
     private git: SimpleGit;
@@ -28,5 +28,65 @@ export class GitService {
 
     async cloneRepository(url: string, projectPath: string): Promise<void> {
         await this.git.clone(url, projectPath);
+    }
+
+    async createTag(projectPath: string, tagName: string): Promise<void> {
+        await this.git.cwd(projectPath);
+        await this.git.addTag(tagName);
+    }
+
+    async checkoutTag(projectPath: string, tagName: string): Promise<void> {
+        await this.git.cwd(projectPath);
+        await this.git.checkout(tagName);
+    }
+
+    async listTags(projectPath: string): Promise<string[]> {
+        await this.git.cwd(projectPath);
+        const tags = await this.git.tags();
+        return tags.all;
+    }
+
+    async getCurrentBranch(projectPath: string): Promise<string> {
+        await this.git.cwd(projectPath);
+        const status = await this.git.status();
+        return status.current || 'HEAD';
+    }
+
+    async createBranch(projectPath: string, branchName: string): Promise<void> {
+        await this.git.cwd(projectPath);
+        await this.git.checkoutLocalBranch(branchName);
+    }
+
+    async switchBranch(projectPath: string, branchName: string): Promise<void> {
+        await this.git.cwd(projectPath);
+        await this.git.checkout(branchName);
+    }
+
+    async push(projectPath: string, remote: string = 'origin', branch?: string): Promise<void> {
+        await this.git.cwd(projectPath);
+        if (branch) {
+            await this.git.push(remote, branch);
+        } else {
+            await this.git.push();
+        }
+    }
+
+    async pull(projectPath: string, remote: string = 'origin', branch?: string): Promise<void> {
+        await this.git.cwd(projectPath);
+        if (branch) {
+            await this.git.pull(remote, branch);
+        } else {
+            await this.git.pull();
+        }
+    }
+
+    async getStatus(projectPath: string): Promise<StatusResult> {
+        await this.git.cwd(projectPath);
+        return await this.git.status();
+    }
+
+    async getLog(projectPath: string): Promise<LogResult> {
+        await this.git.cwd(projectPath);
+        return await this.git.log();
     }
 }
