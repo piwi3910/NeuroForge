@@ -1,6 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import OpenAI from 'openai';
+import { ChatCompletionMessageParam, ChatCompletionSystemMessageParam, ChatCompletionUserMessageParam, ChatCompletionAssistantMessageParam } from 'openai/resources/chat';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -26,6 +27,7 @@ interface AIResponse {
 export class AIArchitectService {
   private systemPrompts: Map<string, string> = new Map();
   private openai: OpenAI;
+  private messageHistory: ChatMessage[] = [];
 
   constructor() {
     this.loadSystemPrompts();
@@ -59,15 +61,26 @@ export class AIArchitectService {
         throw new Error('System prompt not found');
       }
 
+      // Add new messages to history
+      this.messageHistory = [...this.messageHistory, ...messages];
+
+      // Prepare messages for OpenAI
+      const openAiMessages: ChatCompletionMessageParam[] = [
+        { role: "system", content: systemPrompt } as ChatCompletionSystemMessageParam,
+        ...this.messageHistory.map(msg => {
+          if (msg.role === 'assistant') {
+            return { role: 'assistant', content: msg.content } as ChatCompletionAssistantMessageParam;
+          } else {
+            return { role: 'user', content: msg.content } as ChatCompletionUserMessageParam;
+          }
+        })
+      ];
+
+      console.log('Sending messages to OpenAI:', openAiMessages);
+
       const completion = await this.openai.chat.completions.create({
         model: "gpt-4",
-        messages: [
-          { role: "system", content: systemPrompt },
-          ...messages.map(msg => ({
-            role: msg.role,
-            content: msg.content
-          }))
-        ],
+        messages: openAiMessages,
         temperature: 0.7,
         max_tokens: 1000,
         response_format: { type: "json_object" }
@@ -78,20 +91,29 @@ export class AIArchitectService {
         throw new Error('No response from OpenAI');
       }
 
+      console.log('Raw OpenAI response:', response);
+
       // Parse the JSON response
       const parsedResponse = JSON.parse(response);
       
+      // Add AI response to history
+      this.messageHistory.push({
+        role: 'assistant',
+        content: parsedResponse.message
+      });
+
       // Extract project details and message
       const aiResponse: AIResponse = {
         message: parsedResponse.message,
-        details: {
+        details: parsedResponse.status ? {
           name: parsedResponse.name,
           description: parsedResponse.description,
           stack: parsedResponse.stack,
           status: parsedResponse.status
-        }
+        } : undefined
       };
 
+      console.log('Processed AI response:', aiResponse);
       return aiResponse;
     } catch (error) {
       console.error('Error in chat:', error);
@@ -107,11 +129,11 @@ export class AIArchitectService {
           {
             role: "system",
             content: "You are an AI system prompt generator. Your task is to create a detailed system prompt based on the project description provided."
-          },
+          } as ChatCompletionSystemMessageParam,
           {
             role: "user",
             content: `Generate a system prompt for this project: ${description}`
-          }
+          } as ChatCompletionUserMessageParam
         ],
         temperature: 0.7,
         max_tokens: 1000

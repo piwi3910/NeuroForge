@@ -1,47 +1,40 @@
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
+  details?: ProjectDetails;
+}
+
+export interface ProjectDetails {
+  name: string | null;
+  description: string | null;
+  stack: string | null;
+  status: {
+    name: 'complete' | 'incomplete';
+    description: 'complete' | 'incomplete';
+    stack: 'complete' | 'incomplete';
+  };
+}
+
 export interface ProjectConfig {
   name: string;
   path: string;
   description: string;
   systemPrompt: string;
   gitRepo: string;
-  status: 'defining' | 'in-progress' | 'completed';
+  status: string;
   createdAt: Date;
   updatedAt: Date;
 }
-
-export interface ChatMessage {
-  role: 'user' | 'assistant';
-  content: string;
-  timestamp: Date;
-}
-
-export interface ProjectChat {
-  id: string;
-  projectId: string;
-  messages: ChatMessage[];
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export type ItemType = 'epic' | 'story' | 'task';
-export type ItemPriority = 'High' | 'Medium' | 'Low';
-export type ItemStatus = 'Backlog' | 'To Do' | 'In Progress' | 'Done';
 
 export interface BacklogItem {
   id: string;
   projectId: string;
-  type: ItemType;
+  type: string;
   title: string;
   description: string;
-  priority: ItemPriority;
-  status: ItemStatus;
-  epicId?: string;
-  storyId?: string;
-  order: number;
+  status: string;
+  priority: string;
   createdAt: Date;
   updatedAt: Date;
-  createdBy: string;
-  assignedTo?: string;
-  estimatedEffort?: number;
-  labels?: string[];
 }

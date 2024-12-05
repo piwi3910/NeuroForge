@@ -1,16 +1,10 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { ChatMessage } from "@/types/api";
+import { ChatMessage, ProjectDetails } from "@/types/api";
 import { apiClient } from "@/services/api";
 import { DirectoryBrowser } from "@/components/DirectoryBrowser";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
-
-interface ProjectDetails {
-  name: string | null;
-  description: string | null;
-  stack: string | null;
-}
 
 export default function ProjectPage() {
   const [projectPath, setProjectPath] = useState("");
@@ -19,7 +13,12 @@ export default function ProjectPage() {
   const [projectDetails, setProjectDetails] = useState<ProjectDetails>({
     name: null,
     description: null,
-    stack: null
+    stack: null,
+    status: {
+      name: 'incomplete',
+      description: 'incomplete',
+      stack: 'incomplete'
+    }
   });
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -55,7 +54,12 @@ export default function ProjectPage() {
       setProjectDetails({
         name: null,
         description: null,
-        stack: null
+        stack: null,
+        status: {
+          name: 'incomplete',
+          description: 'incomplete',
+          stack: 'incomplete'
+        }
       });
       setMessages([{
         role: "assistant",
@@ -131,30 +135,22 @@ export default function ProjectPage() {
       // Get AI response
       const response = await apiClient.chatWithAI("initial", inputMessage);
       
-      // Parse AI response for project details
-      try {
-        const aiResponse = JSON.parse(response.content);
-        if (aiResponse.name || aiResponse.description || aiResponse.stack) {
-          setProjectDetails(prev => ({
-            name: aiResponse.name || prev.name,
-            description: aiResponse.description || prev.description,
-            stack: aiResponse.stack || prev.stack
-          }));
-        }
-        // Add the message part to chat
-        setMessages(prev => [...prev, {
-          role: "assistant",
-          content: aiResponse.message,
-          timestamp: new Date()
-        }]);
-      } catch {
-        // If response is not JSON, just add it as a message
-        setMessages(prev => [...prev, {
-          role: "assistant",
-          content: response.content,
-          timestamp: new Date()
-        }]);
+      // Update project details if provided
+      if (response.details) {
+        setProjectDetails(prev => ({
+          name: response.details?.name || prev.name,
+          description: response.details?.description || prev.description,
+          stack: response.details?.stack || prev.stack,
+          status: response.details?.status || prev.status
+        }));
       }
+
+      // Add AI message to chat
+      setMessages(prev => [...prev, {
+        role: "assistant",
+        content: response.content,
+        timestamp: new Date(response.timestamp)
+      }]);
 
       // Focus the input after sending
       chatInputRef.current?.focus();
@@ -171,7 +167,9 @@ export default function ProjectPage() {
     }
   };
 
-  const isProjectDefined = projectDetails.name && projectDetails.description && projectDetails.stack;
+  const isProjectDefined = projectDetails.status.name === 'complete' && 
+                          projectDetails.status.description === 'complete' && 
+                          projectDetails.status.stack === 'complete';
 
   return (
     <main className="h-[calc(100vh-40px)] bg-[#1e1e1e] p-4 flex flex-col">

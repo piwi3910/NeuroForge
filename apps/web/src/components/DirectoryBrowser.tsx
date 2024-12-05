@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
-import { Dialog } from './Dialog';
-import { apiClient } from '@/services/api';
+import { Dialog } from "./Dialog";
+import { apiClient } from "@/services/api";
+import { useState, useEffect } from "react";
 
 interface DirectoryEntry {
   path: string;
@@ -12,43 +12,30 @@ interface DirectoryBrowserProps {
   isOpen: boolean;
   onClose: () => void;
   onSelect: (path: string) => void;
-  initialPath?: string;
+  initialPath: string;
 }
 
-export function DirectoryBrowser({ isOpen, onClose, onSelect, initialPath = '/' }: DirectoryBrowserProps) {
+export function DirectoryBrowser({ isOpen, onClose, onSelect, initialPath }: DirectoryBrowserProps) {
   const [currentPath, setCurrentPath] = useState(initialPath);
   const [directories, setDirectories] = useState<DirectoryEntry[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const loadDirectories = async (path: string) => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      const response = await apiClient.listDirectories(path);
-      setDirectories(response);
-      setCurrentPath(path);
-    } catch (error) {
-      console.error('Failed to load directories:', error);
-      setError('Failed to load directories');
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   useEffect(() => {
     if (isOpen) {
-      loadDirectories(initialPath);
+      loadDirectories(currentPath);
     }
-  }, [isOpen, initialPath]);
+  }, [isOpen, currentPath]);
 
-  const handleDirectoryClick = (entry: DirectoryEntry) => {
-    loadDirectories(entry.path);
-  };
-
-  const handleSelect = () => {
-    onSelect(currentPath);
-    onClose();
+  const loadDirectories = async (path: string) => {
+    try {
+      setError(null);
+      const dirs = await apiClient.listDirectories(path);
+      setDirectories(dirs);
+    } catch (error) {
+      console.error('Failed to load directories:', error);
+      setError('Failed to load directories');
+      setDirectories([]);
+    }
   };
 
   const handleCreateDirectory = async () => {
@@ -57,47 +44,57 @@ export function DirectoryBrowser({ isOpen, onClose, onSelect, initialPath = '/' 
 
     try {
       setError(null);
-      await apiClient.createDirectory(`${currentPath}/${name}`);
-      loadDirectories(currentPath);
+      const newPath = `${currentPath}/${name}`;
+      await apiClient.createDirectory(newPath);
+      await loadDirectories(currentPath);
     } catch (error) {
       console.error('Failed to create directory:', error);
       setError('Failed to create directory');
     }
   };
 
+  const handleSelect = (entry: DirectoryEntry) => {
+    if (entry.type === 'parent' || entry.type === 'directory') {
+      setCurrentPath(entry.path);
+    }
+  };
+
+  const handleConfirm = () => {
+    onSelect(currentPath);
+    onClose();
+  };
+
   return (
-    <Dialog isOpen={isOpen} onClose={onClose} title="Select Directory">
-      <div className="flex flex-col h-[400px]">
-        <div className="mb-4 flex items-center gap-2">
-          <span className="text-sm text-gray-400">Current Path:</span>
-          <span className="text-sm font-mono">{currentPath}</span>
+    <Dialog
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Select Directory"
+    >
+      <div className="space-y-4">
+        <div className="text-sm text-gray-400">
+          Current Path: {currentPath}
         </div>
 
         {error && (
-          <div className="mb-4 p-2 bg-red-900/50 text-red-200 rounded text-sm">
+          <div className="bg-red-900/50 text-red-400 p-3 rounded">
             {error}
           </div>
         )}
 
-        <div className="flex-1 bg-[#1e1e1e] rounded border border-[#3e3e3e] overflow-auto mb-4">
-          {isLoading ? (
-            <div className="p-4 text-gray-400">Loading...</div>
-          ) : directories.length === 0 ? (
-            <div className="p-4 text-gray-400">No directories found</div>
-          ) : (
-            <div className="p-2">
-              {directories.map((entry) => (
-                <button
-                  key={entry.path}
-                  onClick={() => handleDirectoryClick(entry)}
-                  className="w-full text-left p-2 hover:bg-[#2d2d2d] rounded flex items-center gap-2"
-                >
-                  <span className="text-blue-400">
-                    {entry.type === 'parent' ? '📂 ..' : '📁'}
-                  </span>
-                  <span>{entry.name}</span>
-                </button>
-              ))}
+        <div className="bg-[#1e1e1e] border border-[#3e3e3e] rounded min-h-[300px] max-h-[300px] overflow-auto p-2">
+          {directories.map((entry, index) => (
+            <div
+              key={index}
+              onClick={() => handleSelect(entry)}
+              className="flex items-center gap-2 p-2 hover:bg-[#2e2e2e] rounded cursor-pointer"
+            >
+              <span className="text-yellow-500">📁</span>
+              <span>{entry.name}</span>
+            </div>
+          ))}
+          {directories.length === 0 && !error && (
+            <div className="text-gray-500 p-2">
+              No directories found
             </div>
           )}
         </div>
@@ -105,20 +102,20 @@ export function DirectoryBrowser({ isOpen, onClose, onSelect, initialPath = '/' 
         <div className="flex justify-between">
           <button
             onClick={handleCreateDirectory}
-            className="px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
+            className="px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700"
           >
             New Directory
           </button>
-          <div className="flex gap-2">
+          <div className="space-x-2">
             <button
               onClick={onClose}
-              className="px-3 py-2 bg-[#3e3e3e] text-white rounded hover:bg-[#4e4e4e] text-sm"
+              className="px-3 py-2 bg-[#3e3e3e] text-white rounded hover:bg-[#4e4e4e]"
             >
               Cancel
             </button>
             <button
-              onClick={handleSelect}
-              className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+              onClick={handleConfirm}
+              className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
             >
               Select
             </button>
