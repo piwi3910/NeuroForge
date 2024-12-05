@@ -1,5 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
+import OpenAI from 'openai';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -15,13 +16,18 @@ interface ProjectDetails {
     description: 'complete' | 'incomplete';
     stack: 'complete' | 'incomplete';
   };
+  message: string;
 }
 
 export class AIArchitectService {
   private systemPrompts: Map<string, string> = new Map();
+  private openai: OpenAI;
 
   constructor() {
     this.loadSystemPrompts();
+    this.openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY
+    });
   }
 
   private async loadSystemPrompts(): Promise<void> {
@@ -44,67 +50,30 @@ export class AIArchitectService {
 
   async chat(messages: ChatMessage[]): Promise<string> {
     try {
-      // TODO: Integrate with actual AI service
-      // For now, return a mock response that demonstrates the expected behavior
-      const lastMessage = messages[messages.length - 1];
-      
-      if (lastMessage.content.toLowerCase().includes('task') || lastMessage.content.toLowerCase().includes('project')) {
-        return JSON.stringify({
-          name: null,
-          description: null,
-          stack: null,
-          status: {
-            name: 'incomplete',
-            description: 'incomplete',
-            stack: 'incomplete'
-          },
-          message: "I'll help you define your project. Let's start with the name. What would you like to call this project?"
-        });
+      const systemPrompt = this.systemPrompts.get('project-definition');
+      if (!systemPrompt) {
+        throw new Error('System prompt not found');
       }
 
-      // Mock response for project name input
-      if (!this.hasProjectName(messages)) {
-        return JSON.stringify({
-          name: lastMessage.content,
-          description: null,
-          stack: null,
-          status: {
-            name: 'complete',
-            description: 'incomplete',
-            stack: 'incomplete'
-          },
-          message: "Great name! Now, could you describe the main purpose and features of your project?"
-        });
-      }
-
-      // Mock response for project description input
-      if (!this.hasProjectDescription(messages)) {
-        return JSON.stringify({
-          name: this.getProjectName(messages),
-          description: lastMessage.content,
-          stack: null,
-          status: {
-            name: 'complete',
-            description: 'complete',
-            stack: 'incomplete'
-          },
-          message: "Thanks for the description! Finally, what technology stack would you like to use for this project?"
-        });
-      }
-
-      // Mock response for technology stack input
-      return JSON.stringify({
-        name: this.getProjectName(messages),
-        description: this.getProjectDescription(messages),
-        stack: lastMessage.content,
-        status: {
-          name: 'complete',
-          description: 'complete',
-          stack: 'complete'
-        },
-        message: "Perfect! I have all the information needed. Your project is now fully defined and ready for the next phase."
+      const completion = await this.openai.chat.completions.create({
+        model: "gpt-4",
+        messages: [
+          { role: "system", content: systemPrompt },
+          ...messages.map(msg => ({
+            role: msg.role,
+            content: msg.content
+          }))
+        ],
+        temperature: 0.7,
+        max_tokens: 1000
       });
 
+      const response = completion.choices[0]?.message?.content;
+      if (!response) {
+        throw new Error('No response from OpenAI');
+      }
+
+      return response;
     } catch (error) {
       console.error('Error in chat:', error);
       throw new Error('Failed to process chat message');
@@ -112,27 +81,32 @@ export class AIArchitectService {
   }
 
   async generateSystemPrompt(description: string): Promise<string> {
-    // TODO: Integrate with actual AI service
-    return "Generated system prompt based on: " + description;
-  }
+    try {
+      const completion = await this.openai.chat.completions.create({
+        model: "gpt-4",
+        messages: [
+          {
+            role: "system",
+            content: "You are an AI system prompt generator. Your task is to create a detailed system prompt based on the project description provided."
+          },
+          {
+            role: "user",
+            content: `Generate a system prompt for this project: ${description}`
+          }
+        ],
+        temperature: 0.7,
+        max_tokens: 1000
+      });
 
-  private hasProjectName(messages: ChatMessage[]): boolean {
-    // Simple mock implementation
-    return messages.length > 2;
-  }
+      const response = completion.choices[0]?.message?.content;
+      if (!response) {
+        throw new Error('No response from OpenAI');
+      }
 
-  private hasProjectDescription(messages: ChatMessage[]): boolean {
-    // Simple mock implementation
-    return messages.length > 4;
-  }
-
-  private getProjectName(messages: ChatMessage[]): string {
-    // Simple mock implementation
-    return messages[2].content;
-  }
-
-  private getProjectDescription(messages: ChatMessage[]): string {
-    // Simple mock implementation
-    return messages[4].content;
+      return response;
+    } catch (error) {
+      console.error('Error generating system prompt:', error);
+      throw new Error('Failed to generate system prompt');
+    }
   }
 }
