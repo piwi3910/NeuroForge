@@ -4,7 +4,7 @@ import { AIArchitectService } from '../services/AIArchitect';
 import path from 'path';
 
 const router = express.Router();
-const projectService = new ProjectService(path.join(process.cwd(), 'projects'));
+const projectService = new ProjectService(path.join(process.cwd(), '../../projects'));
 const aiArchitect = new AIArchitectService();
 
 // Create a new project
@@ -82,7 +82,8 @@ router.post('/:projectId/chat', async (req, res) => {
 
     res.json({
       role: 'assistant',
-      content: response,
+      content: response.message,
+      details: response.details,
       timestamp: new Date()
     });
   } catch (error) {

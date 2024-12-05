@@ -16,7 +16,11 @@ interface ProjectDetails {
     description: 'complete' | 'incomplete';
     stack: 'complete' | 'incomplete';
   };
+}
+
+interface AIResponse {
   message: string;
+  details?: ProjectDetails;
 }
 
 export class AIArchitectService {
@@ -48,7 +52,7 @@ export class AIArchitectService {
     }
   }
 
-  async chat(messages: ChatMessage[]): Promise<string> {
+  async chat(messages: ChatMessage[]): Promise<AIResponse> {
     try {
       const systemPrompt = this.systemPrompts.get('project-definition');
       if (!systemPrompt) {
@@ -65,7 +69,8 @@ export class AIArchitectService {
           }))
         ],
         temperature: 0.7,
-        max_tokens: 1000
+        max_tokens: 1000,
+        response_format: { type: "json_object" }
       });
 
       const response = completion.choices[0]?.message?.content;
@@ -73,7 +78,21 @@ export class AIArchitectService {
         throw new Error('No response from OpenAI');
       }
 
-      return response;
+      // Parse the JSON response
+      const parsedResponse = JSON.parse(response);
+      
+      // Extract project details and message
+      const aiResponse: AIResponse = {
+        message: parsedResponse.message,
+        details: {
+          name: parsedResponse.name,
+          description: parsedResponse.description,
+          stack: parsedResponse.stack,
+          status: parsedResponse.status
+        }
+      };
+
+      return aiResponse;
     } catch (error) {
       console.error('Error in chat:', error);
       throw new Error('Failed to process chat message');
