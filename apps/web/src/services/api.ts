@@ -1,4 +1,4 @@
-import { ProjectConfig, ChatMessage, BacklogItem } from '../types/api';
+import { ProjectConfig, BacklogItem, AIResponse } from '../types/api';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
@@ -6,6 +6,13 @@ interface DirectoryEntry {
   path: string;
   name: string;
   type: 'directory' | 'parent';
+}
+
+interface RawAIResponse {
+  message?: string;
+  content?: string;
+  timestamp: string;
+  details?: AIResponse['details'];
 }
 
 class ApiError extends Error {
@@ -115,12 +122,20 @@ class ApiClient {
     });
   }
 
-  async chatWithAI(projectId: string, message: string): Promise<ChatMessage> {
+  async chatWithAI(projectId: string, message: string): Promise<AIResponse> {
     try {
-      return await this.request(`/projects/${projectId}/chat`, {
+      const response = await this.request<RawAIResponse>(`/projects/${projectId}/chat`, {
         method: 'POST',
         body: JSON.stringify({ message }),
       });
+
+      // Convert the response to match the AIResponse interface
+      return {
+        role: 'assistant',
+        content: response.message || response.content || '', // Handle both formats and ensure string
+        timestamp: new Date(response.timestamp),
+        details: response.details
+      };
     } catch (error) {
       console.error('Chat with AI failed:', error);
       throw new Error(

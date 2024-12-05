@@ -165,12 +165,8 @@ export default function ProjectPage() {
       
       // Update project details if provided
       if (response.details) {
-        setProjectDetails(prev => ({
-          name: response.details?.name || prev.name,
-          description: response.details?.description || prev.description,
-          stack: response.details?.stack || prev.stack,
-          status: response.details?.status || prev.status
-        }));
+        console.log('Updating project details:', response.details); // Debug log
+        setProjectDetails(response.details);
       }
 
       // Add AI message to chat
@@ -199,6 +195,9 @@ export default function ProjectPage() {
   const isProjectDefined = projectDetails.status?.name === 'complete' && 
                           projectDetails.status?.description === 'complete' && 
                           projectDetails.status?.stack === 'complete';
+
+  console.log('Project details:', projectDetails); // Debug log
+  console.log('Is project defined:', isProjectDefined); // Debug log
 
   return (
     <main className="h-[calc(100vh-40px)] bg-[#1e1e1e] p-4 flex flex-col">

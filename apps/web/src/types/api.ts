@@ -38,3 +38,11 @@ export interface BacklogItem {
   createdAt: Date;
   updatedAt: Date;
 }
+
+export interface AIResponse {
+  role: 'assistant';
+  content: string;
+  message?: string; // Added for backward compatibility
+  timestamp: Date;
+  details?: ProjectDetails;
+}
