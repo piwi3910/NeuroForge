@@ -1,63 +1,56 @@
 import express from 'express';
 import cors from 'cors';
-import { Server } from 'socket.io';
-import { createServer } from 'http';
-import filesRouter from './routes/files';
-import env from './config/env';
+import dotenv from 'dotenv';
+import projectRoutes from './routes/project';
+import backlogRoutes from './routes/backlog';
+
+// Load environment variables
+dotenv.config();
 
 const app = express();
-const httpServer = createServer(app);
-const io = new Server(httpServer, {
-  cors: {
-    origin: env.FRONTEND_URL,
-    methods: ['GET', 'POST']
-  }
-});
+const port = process.env.PORT || 3001;
 
 // Middleware
-app.use(cors({
-  origin: env.FRONTEND_URL,
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  credentials: true
-}));
+app.use(cors());
 app.use(express.json());
 
+// Request logging middleware
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  next();
+});
+
+// Error handling middleware
+app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error('Error:', err);
+  res.status(500).json({ error: 'Internal server error' });
+});
+
 // Routes
-app.use('/api/files', filesRouter);
+app.use('/api/projects', projectRoutes);
+app.use('/api/backlog', backlogRoutes);
 
-// Socket.IO connection handling
-io.on('connection', (socket) => {
-  console.log('Client connected:', socket.id);
-
-  socket.on('disconnect', () => {
-    console.log('Client disconnected:', socket.id);
-  });
-
-  // Handle file changes
-  socket.on('file:change', (data) => {
-    socket.broadcast.emit('file:change', data);
-  });
-
-  // Handle cursor position updates
-  socket.on('cursor:update', (data) => {
-    socket.broadcast.emit('cursor:update', data);
-  });
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok' });
 });
 
 // Start server
-const port = parseInt(env.PORT, 10);
-httpServer.listen(port, () => {
-  console.log(`Server running on port ${port} in ${env.NODE_ENV} mode`);
-  console.log(`Frontend URL: ${env.FRONTEND_URL}`);
+app.listen(port, () => {
+  console.log(`Server is running on port ${port}`);
+  console.log(`API Documentation available at http://localhost:${port}/api-docs`);
 });
 
-// Error handling
-process.on('unhandledRejection', (err) => {
-  console.error('Unhandled Promise Rejection:', err);
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
   process.exit(1);
 });
 
-process.on('uncaughtException', (err) => {
-  console.error('Uncaught Exception:', err);
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
   process.exit(1);
 });
+
+export default app;
