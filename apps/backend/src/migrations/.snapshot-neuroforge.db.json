@@ -218,13 +218,13 @@
         },
         "data": {
           "name": "data",
-          "type": "json",
+          "type": "text",
           "unsigned": false,
           "autoincrement": false,
           "primary": false,
           "nullable": false,
           "length": null,
-          "mappedType": "json"
+          "mappedType": "text"
         },
         "created_at": {
           "name": "created_at",

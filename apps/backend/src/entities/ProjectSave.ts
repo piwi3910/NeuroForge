@@ -12,7 +12,7 @@ export class ProjectSave {
   @Property()
   name!: string;
 
-  @Property({ type: 'json' })
+  @Property({ type: 'text' })
   data!: string;
 
   @Property({ fieldName: 'created_at' })

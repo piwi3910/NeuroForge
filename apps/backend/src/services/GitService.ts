@@ -32,7 +32,19 @@ export class GitService {
 
     async createTag(projectPath: string, tagName: string): Promise<void> {
         await this.git.cwd(projectPath);
-        await this.git.addTag(tagName);
+        try {
+            // Try to delete the tag if it exists
+            try {
+                await this.git.tag(['-d', tagName]);
+            } catch (error) {
+                // Tag doesn't exist, that's fine
+            }
+            // Create the new tag
+            await this.git.addTag(tagName);
+        } catch (error) {
+            console.error('Failed to create tag:', error);
+            throw error;
+        }
     }
 
     async checkoutTag(projectPath: string, tagName: string): Promise<void> {
