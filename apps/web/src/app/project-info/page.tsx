@@ -30,8 +30,7 @@ export default function ProjectPage() {
   };
 
   const handleInitRepo = async () => {
-    if (!projectPath) {
-      alert("Please enter a project path");
+    if (!projectPath || isGitRepo) {
       return;
     }
 
@@ -43,6 +42,7 @@ export default function ProjectPage() {
         undefined // No git URL for local init
       );
       setIsGitRepo(true);
+      setGitUrl(""); // Clear git URL since we've initialized locally
     } catch (error) {
       console.error('Failed to initialize repository:', error);
       alert("Failed to initialize repository. Please try again.");
@@ -52,8 +52,7 @@ export default function ProjectPage() {
   };
 
   const handleCloneRepo = async () => {
-    if (!projectPath || !gitUrl) {
-      alert("Please enter both project path and git URL");
+    if (!projectPath || !gitUrl || isGitRepo) {
       return;
     }
 
@@ -130,10 +129,14 @@ export default function ProjectPage() {
                   onChange={(e) => setProjectPath(e.target.value)}
                   placeholder="/path/to/your/project"
                   className="flex-1 bg-[#1e1e1e] border border-[#3e3e3e] rounded px-3 py-2 text-sm"
+                  disabled={isGitRepo}
                 />
                 <button 
                   onClick={handleBrowse}
-                  className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+                  className={`px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm ${
+                    isGitRepo ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                  disabled={isGitRepo}
                 >
                   Browse
                 </button>
@@ -149,6 +152,7 @@ export default function ProjectPage() {
                   onChange={(e) => setGitUrl(e.target.value)}
                   placeholder="https://github.com/user/repo.git"
                   className="w-full bg-[#1e1e1e] border border-[#3e3e3e] rounded px-3 py-2 text-sm"
+                  disabled={isGitRepo}
                 />
               </div>
             </div>
@@ -156,18 +160,18 @@ export default function ProjectPage() {
             <div className="flex gap-2">
               <button
                 onClick={handleInitRepo}
-                disabled={!projectPath || isLoading}
+                disabled={!projectPath || isLoading || isGitRepo}
                 className={`flex-1 px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm ${
-                  (!projectPath || isLoading) ? 'opacity-50 cursor-not-allowed' : ''
+                  (!projectPath || isLoading || isGitRepo) ? 'opacity-50 cursor-not-allowed' : ''
                 }`}
               >
                 Initialize Local Repository
               </button>
               <button
                 onClick={handleCloneRepo}
-                disabled={!projectPath || !gitUrl || isLoading}
+                disabled={!projectPath || !gitUrl || isLoading || isGitRepo}
                 className={`flex-1 px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm ${
-                  (!projectPath || !gitUrl || isLoading) ? 'opacity-50 cursor-not-allowed' : ''
+                  (!projectPath || !gitUrl || isLoading || isGitRepo) ? 'opacity-50 cursor-not-allowed' : ''
                 }`}
               >
                 Clone Repository
