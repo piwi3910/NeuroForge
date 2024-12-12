@@ -1,24 +1,18 @@
-import { ProjectDetails } from "../../types/project-info";
+import { Project } from '../../../../backend/src/generated/api'
 
-export interface ProjectState {
-  projectId: string | null;
-  projectPath: string;
-  isGitRepo: boolean;
-  projectDetails: ProjectDetails;
-  isLoading: boolean;
-  isResetDialogOpen: boolean;
+export interface ProjectDetails {
+  name?: string | null
+  description?: string | null
+  stack?: string | null
+  status?: {
+    name?: 'incomplete' | 'complete'
+    description?: 'incomplete' | 'complete'
+    stack?: 'incomplete' | 'complete'
+  }
 }
 
-export type SetProjectDetails = (details: ProjectDetails | ((prev: ProjectDetails) => ProjectDetails)) => void;
-
-export interface ProjectActions {
-  setProjectId: (id: string | null) => void;
-  setProjectPath: (path: string) => void;
-  setIsGitRepo: (value: boolean) => void;
-  setProjectDetails: SetProjectDetails;
-  setIsLoading: (value: boolean) => void;
-  setIsResetDialogOpen: (value: boolean) => void;
-  handleReset: () => Promise<void>;
+export interface ProjectInfoLayoutProps {
+  project: Project
+  onReset: () => void
+  onUpdateDetails: (details: ProjectDetails) => void
 }
-
-export type UseProjectInfo = ProjectState & ProjectActions;
