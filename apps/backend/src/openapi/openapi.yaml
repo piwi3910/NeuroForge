@@ -1,0 +1,342 @@
+openapi: 3.1.0
+info:
+  title: NeuroForge API
+  description: API for the NeuroForge project management and AI assistance system
+  version: 1.0.0
+  contact:
+    name: NeuroForge Team
+servers:
+  - url: http://localhost:3001
+    description: Local development server
+
+components:
+  schemas:
+    Project:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        path:
+          type: string
+        description:
+          type: string
+        git_repo:
+          type: string
+          nullable: true
+        details:
+          type: object
+          properties:
+            name:
+              type: string
+              nullable: true
+            description:
+              type: string
+              nullable: true
+            stack:
+              type: string
+              nullable: true
+            status:
+              type: object
+              properties:
+                name:
+                  type: string
+                  enum: [incomplete, complete]
+                description:
+                  type: string
+                  enum: [incomplete, complete]
+                stack:
+                  type: string
+                  enum: [incomplete, complete]
+      required:
+        - id
+        - name
+        - path
+        - description
+
+    ChatMessage:
+      type: object
+      properties:
+        role:
+          type: string
+          enum: [user, assistant]
+        content:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+      required:
+        - role
+        - content
+        - timestamp
+
+    AIResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        details:
+          type: object
+          nullable: true
+          properties:
+            name:
+              type: string
+            description:
+              type: string
+            stack:
+              type: string
+            status:
+              type: string
+      required:
+        - message
+
+paths:
+  /projects:
+    post:
+      summary: Create a new project
+      operationId: createProject
+      tags:
+        - Projects
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                gitRepo:
+                  type: string
+                  nullable: true
+              required:
+                - name
+                - description
+      responses:
+        '201':
+          description: Project created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '400':
+          description: Invalid request body
+        '500':
+          description: Internal server error
+
+  /projects/{projectId}:
+    get:
+      summary: Get project details
+      operationId: getProject
+      tags:
+        - Projects
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Project details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '404':
+          description: Project not found
+        '500':
+          description: Internal server error
+
+    delete:
+      summary: Reset/delete a project
+      operationId: resetProject
+      tags:
+        - Projects
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Project reset successfully
+        '404':
+          description: Project not found
+        '500':
+          description: Internal server error
+
+  /projects/{projectId}/description:
+    put:
+      summary: Update project description
+      operationId: updateProjectDescription
+      tags:
+        - Projects
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                description:
+                  type: string
+              required:
+                - description
+      responses:
+        '200':
+          description: Project description updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '404':
+          description: Project not found
+        '500':
+          description: Internal server error
+
+  /projects/{projectId}/chat:
+    post:
+      summary: Send a message to the AI assistant
+      operationId: chatWithAI
+      tags:
+        - Chat
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+              required:
+                - message
+      responses:
+        '200':
+          description: AI response received successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AIResponse'
+        '404':
+          description: Project not found
+        '500':
+          description: Internal server error
+
+  /projects/{projectId}/saves:
+    get:
+      summary: List project saves
+      operationId: listProjectSaves
+      tags:
+        - Project State
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Project saves retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+        '404':
+          description: Project not found
+        '500':
+          description: Internal server error
+
+    post:
+      summary: Save project state
+      operationId: saveProjectState
+      tags:
+        - Project State
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                saveName:
+                  type: string
+              required:
+                - saveName
+      responses:
+        '201':
+          description: Project state saved successfully
+        '404':
+          description: Project not found
+        '500':
+          description: Internal server error
+
+  /projects/{projectId}/saves/{saveName}:
+    post:
+      summary: Load project state
+      operationId: loadProjectState
+      tags:
+        - Project State
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: saveName
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Project state loaded successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '404':
+          description: Project or save state not found
+        '500':
+          description: Internal server error
+
+tags:
+  - name: Projects
+    description: Project management operations
+  - name: Chat
+    description: AI chat operations
+  - name: Project State
+    description: Project state management operations
