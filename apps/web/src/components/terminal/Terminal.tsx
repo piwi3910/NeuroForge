@@ -1,45 +1,77 @@
-"use client";
+import { useEffect, useRef } from 'react'
+import { XtermService } from '../../services/terminal'
+import type { TerminalInstance } from '../../services/terminal'
+import 'xterm/css/xterm.css'
 
-import { CommandInput } from './CommandInput';
-import { CommandOutput } from './CommandOutput';
-import { useTerminal } from './useTerminal';
+interface TerminalProps {
+  onData?: (data: string) => void
+  onResize?: (cols: number, rows: number) => void
+  className?: string
+}
 
-export function Terminal() {
-  const {
-    commands,
-    currentInput,
-    suggestions,
-    selectedSuggestion,
-    terminalRef,
-    inputRef,
-    handleInputChange,
-    handleKeyDown,
-    handleSuggestionClick
-  } = useTerminal();
+export function Terminal({ onData, onResize, className = '' }: TerminalProps) {
+  const terminalRef = useRef<HTMLDivElement>(null)
+  const instanceRef = useRef<TerminalInstance | null>(null)
+  const service = XtermService.getInstance()
+
+  useEffect(() => {
+    if (!terminalRef.current) return
+
+    // Create terminal instance
+    const instance = service.createTerminal(terminalRef.current, {
+      fontSize: 14,
+      fontFamily: 'JetBrains Mono, monospace',
+      theme: {
+        background: '#1e1e1e',
+        foreground: '#ffffff',
+        cursor: '#ffffff',
+        selection: 'rgba(255, 255, 255, 0.3)',
+      },
+    })
+
+    instanceRef.current = instance
+
+    // Set up event handlers
+    if (onData) {
+      service.onTerminalData(instance, onData)
+    }
+
+    if (onResize) {
+      service.onTerminalResize(instance, onResize)
+    }
+
+    // Handle window resize
+    const handleResize = () => {
+      if (instanceRef.current) {
+        service.resizeTerminal(instanceRef.current)
+      }
+    }
+
+    window.addEventListener('resize', handleResize)
+    handleResize()
+
+    // Focus the terminal
+    service.focusTerminal(instance)
+
+    // Cleanup
+    return () => {
+      window.removeEventListener('resize', handleResize)
+      if (instanceRef.current) {
+        service.disposeTerminal(instanceRef.current)
+        instanceRef.current = null
+      }
+    }
+  }, [onData, onResize])
 
   return (
     <div 
-      className="h-full w-full font-mono text-sm flex flex-col"
-      onClick={() => inputRef.current?.focus()}
-    >
-      <div className="p-2 border-b border-[#2d2d2d] text-xs">
-        <span className="text-gray-400">TERMINAL</span>
-      </div>
-      <div 
-        ref={terminalRef}
-        className="flex-1 overflow-auto p-2 space-y-1"
-      >
-        <CommandOutput commands={commands} />
-        <CommandInput
-          currentInput={currentInput}
-          suggestions={suggestions}
-          selectedSuggestion={selectedSuggestion}
-          inputRef={inputRef}
-          onInputChange={handleInputChange}
-          onKeyDown={handleKeyDown}
-          onSuggestionClick={handleSuggestionClick}
-        />
-      </div>
-    </div>
-  );
+      ref={terminalRef} 
+      className={`h-full w-full bg-[#1e1e1e] ${className}`}
+      onClick={() => {
+        if (instanceRef.current) {
+          service.focusTerminal(instanceRef.current)
+        }
+      }}
+    />
+  )
 }
