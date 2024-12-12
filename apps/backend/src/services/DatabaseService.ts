@@ -1,203 +1,139 @@
-import { EntityManager, MikroORM } from '@mikro-orm/core';
-import { Project, ChatMessage, ProjectSave } from '../entities';
+import { MikroORM, EntityManager } from '@mikro-orm/core';
+import { Project, ProjectSave, ChatMessage as ChatMessageEntity } from '../entities';
+import { ProjectWithDetails, ProjectDetails } from '../types/project';
+import { ChatMessage } from './project-service/types';
 import config from '../mikro-orm.config';
-import { ProjectWithDetails } from '../types/project';
 
 class DatabaseService {
-    private orm: MikroORM | null = null;
-    private em: EntityManager | null = null;
+    private orm!: MikroORM;
+    private em!: EntityManager;
 
     async initialize() {
-        if (this.orm) {
-            return;
-        }
-
-        try {
-            this.orm = await MikroORM.init(config);
-            this.em = this.orm.em.fork();
-
-            // Run migrations
-            const migrator = this.orm.getMigrator();
-            await migrator.up();
-
-            console.log('Database initialized successfully');
-        } catch (error) {
-            console.error('Failed to initialize database:', error);
-            throw error;
-        }
+        this.orm = await MikroORM.init(config);
+        this.em = this.orm.em;
+        await this.orm.getMigrator().up();
     }
 
-    async createProject(id: string, name: string, projectPath: string, description?: string, gitRepo?: string) {
-        if (!this.em) {
-            throw new Error('Database not initialized');
-        }
-
+    async createProject(id: string, name: string, path: string, description: string, gitRepo?: string): Promise<void> {
         const project = new Project();
         project.id = id;
         project.name = name;
-        project.path = projectPath;
+        project.path = path;
         project.description = description;
         project.gitRepo = gitRepo;
 
         await this.em.persistAndFlush(project);
     }
 
-    async getProjectDetails(projectId: string): Promise<ProjectWithDetails | null> {
-        if (!this.em) {
-            throw new Error('Database not initialized');
-        }
+    async getProjectDetails(id: string): Promise<ProjectWithDetails | null> {
+        const project = await this.em.findOne(Project, { id });
+        if (!project) return null;
 
-        const project = await this.em.findOne(Project, { id: projectId });
-
-        if (!project) {
-            return null;
-        }
+        const defaultDetails: ProjectDetails = {
+            name: project.name,
+            description: project.description || null,
+            stack: null,
+            status: {
+                name: 'incomplete',
+                description: 'incomplete',
+                stack: 'incomplete'
+            }
+        };
 
         return {
             id: project.id,
             name: project.name,
             path: project.path,
-            description: project.description,
-            git_repo: project.gitRepo,
-            details: {
-                name: project.name,
-                description: project.description,
-                stack: null,
-                status: {
-                    name: 'incomplete',
-                    description: 'incomplete',
-                    stack: 'incomplete'
-                }
-            }
+            description: project.description || null,
+            git_repo: project.gitRepo || null,
+            details: defaultDetails
         };
     }
 
-    async updateProjectDetails(projectId: string, updates: Partial<ProjectWithDetails>) {
-        if (!this.em) {
-            throw new Error('Database not initialized');
-        }
+    async updateProjectDetails(id: string, details: Partial<ProjectWithDetails>): Promise<void> {
+        const project = await this.em.findOne(Project, { id });
+        if (!project) throw new Error('Project not found');
 
-        const project = await this.em.findOne(Project, { id: projectId });
-        if (!project) {
-            throw new Error('Project not found');
+        if (details.description !== undefined) {
+            project.description = details.description || undefined;
         }
-
-        if (updates.name !== undefined) {
-            project.name = updates.name;
-        }
-        if (updates.description !== undefined) {
-            project.description = updates.description;
-        }
-        if (updates.git_repo !== undefined) {
-            project.gitRepo = updates.git_repo;
+        if (details.git_repo !== undefined) {
+            project.gitRepo = details.git_repo || undefined;
         }
 
         await this.em.flush();
     }
 
-    async deleteProject(projectId: string) {
-        if (!this.em) {
-            throw new Error('Database not initialized');
-        }
-
-        const project = await this.em.findOne(Project, { id: projectId });
+    async deleteProject(id: string): Promise<void> {
+        const project = await this.em.findOne(Project, { id });
         if (project) {
             await this.em.removeAndFlush(project);
         }
     }
 
-    async saveChatMessage(projectId: string, role: string, content: string) {
-        if (!this.em) {
-            throw new Error('Database not initialized');
-        }
+    async clearChatHistory(id: string): Promise<void> {
+        const project = await this.em.findOne(Project, { id });
+        if (!project) throw new Error('Project not found');
 
-        const project = await this.em.findOne(Project, { id: projectId });
-        if (!project) {
-            throw new Error('Project not found');
-        }
-
-        const message = new ChatMessage();
-        message.project = project;
-        message.role = role;
-        message.content = content;
-
-        await this.em.persistAndFlush(message);
+        await this.em.nativeDelete(ChatMessageEntity, { project });
     }
 
-    async getChatMessages(projectId: string) {
-        if (!this.em) {
-            throw new Error('Database not initialized');
-        }
+    async getChatMessages(id: string): Promise<ChatMessage[]> {
+        const project = await this.em.findOne(Project, { id });
+        if (!project) return [];
 
-        const messages = await this.em.find(ChatMessage, { project: projectId }, {
-            orderBy: { timestamp: 'ASC' }
-        });
-
+        const messages = await this.em.find(ChatMessageEntity, { project });
         return messages.map(msg => ({
-            role: msg.role,
+            role: msg.role as 'user' | 'assistant',
             content: msg.content,
             timestamp: msg.timestamp
         }));
     }
 
-    async clearChatHistory(projectId: string) {
-        if (!this.em) {
-            throw new Error('Database not initialized');
-        }
+    async saveChatMessage(id: string, role: 'user' | 'assistant', content: string): Promise<void> {
+        const project = await this.em.findOne(Project, { id });
+        if (!project) throw new Error('Project not found');
 
-        await this.em.nativeDelete(ChatMessage, { project: projectId });
+        const message = new ChatMessageEntity();
+        message.project = project;
+        message.role = role;
+        message.content = content;
+        message.timestamp = new Date();
+
+        await this.em.persistAndFlush(message);
     }
 
-    async saveProjectState(projectId: string, name: string, data: string) {
-        if (!this.em) {
-            throw new Error('Database not initialized');
-        }
-
-        const project = await this.em.findOne(Project, { id: projectId });
-        if (!project) {
-            throw new Error('Project not found');
-        }
+    async saveProjectState(id: string, name: string, data: string): Promise<void> {
+        const project = await this.em.findOne(Project, { id });
+        if (!project) throw new Error('Project not found');
 
         const save = new ProjectSave();
         save.project = project;
         save.name = name;
         save.data = data;
+        save.createdAt = new Date();
 
         await this.em.persistAndFlush(save);
     }
 
-    async loadProjectState(projectId: string, name: string): Promise<string | null> {
-        if (!this.em) {
-            throw new Error('Database not initialized');
-        }
+    async loadProjectState(id: string, name: string): Promise<string | null> {
+        const project = await this.em.findOne(Project, { id });
+        if (!project) return null;
 
-        const save = await this.em.findOne(ProjectSave, {
-            project: projectId,
-            name
-        });
-
-        return save ? save.data : null;
+        const save = await this.em.findOne(ProjectSave, { project, name });
+        return save?.data || null;
     }
 
-    async listProjectSaves(projectId: string): Promise<string[]> {
-        if (!this.em) {
-            throw new Error('Database not initialized');
-        }
+    async listProjectSaves(id: string): Promise<string[]> {
+        const project = await this.em.findOne(Project, { id });
+        if (!project) return [];
 
-        const saves = await this.em.find(ProjectSave, { project: projectId }, {
-            orderBy: { createdAt: 'DESC' }
-        });
-
+        const saves = await this.em.find(ProjectSave, { project });
         return saves.map(save => save.name);
     }
 
     async getAllProjectSaves(): Promise<number> {
-        if (!this.em) {
-            throw new Error('Database not initialized');
-        }
-
-        const count = await this.em.count(ProjectSave);
-        return count;
+        return await this.em.count(ProjectSave);
     }
 }
 
