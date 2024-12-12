@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { ChatMessage, ProjectDetails } from "../types/api";
-import { apiClient } from "../services/api";
-import { DirectoryBrowser } from "../components/DirectoryBrowser";
-import { ConfirmDialog } from "../components/ConfirmDialog";
-import { Dialog } from "../components/Dialog";
+import { ChatMessage, ProjectDetails } from "@/types/api";
+import { apiClient } from "@/services/api";
+import { DirectoryBrowser } from "@/components/DirectoryBrowser";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { Dialog } from "@/components/Dialog";
 
 export default function ProjectPage() {
+  // Previous state declarations and handlers remain the same...
   const [projectId, setProjectId] = useState<string | null>(null);
   const [projectPath, setProjectPath] = useState("");
   const [gitUrl, setGitUrl] = useState("");
@@ -234,6 +235,7 @@ export default function ProjectPage() {
 
     try {
       setIsLoading(true);
+      console.log('Sending message:', inputMessage); // Debug log
       
       // Add user message to chat
       const userMessage: ChatMessage = {
@@ -246,6 +248,7 @@ export default function ProjectPage() {
 
       // Get AI response
       const response = await apiClient.chatWithAI(projectId, inputMessage);
+      console.log('Received AI response:', response); // Debug log
       
       // Update project details if provided
       if (response.details) {
@@ -277,6 +280,13 @@ export default function ProjectPage() {
       }]);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
     }
   };
 
@@ -490,7 +500,7 @@ export default function ProjectPage() {
               type="text"
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
-              onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
+              onKeyDown={handleKeyDown}
               placeholder={isGitRepo ? "Type your message..." : "Please set up your project repository first"}
               className="flex-1 bg-[#1e1e1e] border border-[#3e3e3e] rounded-full px-4 py-2"
               disabled={isLoading || !isGitRepo}
