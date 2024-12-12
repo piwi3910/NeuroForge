@@ -1,9 +1,10 @@
-import { DirectoryBrowser } from '../DirectoryBrowser';
+import { DirectoryBrowser } from '../directory-browser';
 import { ProjectSetupPanelProps } from './setup/types';
 import { PathInput } from './setup/PathInput';
 import { GitUrlInput } from './setup/GitUrlInput';
 import { ActionButtons } from './setup/ActionButtons';
 import { useProjectSetup } from './setup/useProjectSetup';
+import { isProjectDefined } from './setup/utils';
 
 export function ProjectSetupPanel({
   projectPath,
@@ -33,10 +34,6 @@ export function ProjectSetupPanel({
     setIsLoading
   );
 
-  const isProjectDefined = projectDetails.status?.name === 'complete' && 
-                          projectDetails.status?.description === 'complete' && 
-                          projectDetails.status?.stack === 'complete';
-
   const handleSelectDirectory = (path: string) => {
     setProjectPath(path);
   };
@@ -61,7 +58,7 @@ export function ProjectSetupPanel({
         gitUrl={gitUrl}
         isGitRepo={isGitRepo}
         isLoading={isLoading}
-        isProjectDefined={isProjectDefined}
+        isProjectDefined={isProjectDefined(projectDetails)}
         onInitRepo={handleInitRepo}
         onCloneRepo={handleCloneRepo}
         onReset={onReset}
