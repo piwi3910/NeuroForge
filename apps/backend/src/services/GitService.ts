@@ -1,12 +1,14 @@
-import simpleGit, { SimpleGit, StatusResult, LogResult } from 'simple-git';
+import simpleGit, { SimpleGit } from 'simple-git';
+import { GitService as IGitService } from './git-service/types';
 
-export class GitService {
+export class GitService implements IGitService {
     private git: SimpleGit;
 
     constructor() {
         this.git = simpleGit();
     }
 
+    // Basic Operations
     async initRepository(projectPath: string): Promise<void> {
         console.log('Initializing git repository at:', projectPath);
         await this.git.cwd(projectPath);
@@ -14,6 +16,21 @@ export class GitService {
         console.log('Git repository initialized');
     }
 
+    async cloneRepository(url: string, projectPath: string): Promise<void> {
+        await this.git.clone(url, projectPath);
+    }
+
+    async getStatus(projectPath: string) {
+        await this.git.cwd(projectPath);
+        return await this.git.status();
+    }
+
+    async getLog(projectPath: string) {
+        await this.git.cwd(projectPath);
+        return await this.git.log();
+    }
+
+    // Commit Operations
     async createInitialCommit(projectPath: string): Promise<void> {
         await this.git.cwd(projectPath);
         await this.git.add('.');
@@ -26,10 +43,24 @@ export class GitService {
         await this.git.commit(message);
     }
 
-    async cloneRepository(url: string, projectPath: string): Promise<void> {
-        await this.git.clone(url, projectPath);
+    // Branch Operations
+    async getCurrentBranch(projectPath: string): Promise<string> {
+        await this.git.cwd(projectPath);
+        const status = await this.git.status();
+        return status.current || 'HEAD';
     }
 
+    async createBranch(projectPath: string, branchName: string): Promise<void> {
+        await this.git.cwd(projectPath);
+        await this.git.checkoutLocalBranch(branchName);
+    }
+
+    async switchBranch(projectPath: string, branchName: string): Promise<void> {
+        await this.git.cwd(projectPath);
+        await this.git.checkout(branchName);
+    }
+
+    // Tag Operations
     async createTag(projectPath: string, tagName: string): Promise<void> {
         await this.git.cwd(projectPath);
         try {
@@ -58,22 +89,7 @@ export class GitService {
         return tags.all;
     }
 
-    async getCurrentBranch(projectPath: string): Promise<string> {
-        await this.git.cwd(projectPath);
-        const status = await this.git.status();
-        return status.current || 'HEAD';
-    }
-
-    async createBranch(projectPath: string, branchName: string): Promise<void> {
-        await this.git.cwd(projectPath);
-        await this.git.checkoutLocalBranch(branchName);
-    }
-
-    async switchBranch(projectPath: string, branchName: string): Promise<void> {
-        await this.git.cwd(projectPath);
-        await this.git.checkout(branchName);
-    }
-
+    // Remote Operations
     async push(projectPath: string, remote: string = 'origin', branch?: string): Promise<void> {
         await this.git.cwd(projectPath);
         if (branch) {
@@ -90,15 +106,5 @@ export class GitService {
         } else {
             await this.git.pull();
         }
-    }
-
-    async getStatus(projectPath: string): Promise<StatusResult> {
-        await this.git.cwd(projectPath);
-        return await this.git.status();
-    }
-
-    async getLog(projectPath: string): Promise<LogResult> {
-        await this.git.cwd(projectPath);
-        return await this.git.log();
     }
 }
