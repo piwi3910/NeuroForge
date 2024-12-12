@@ -1,48 +1,40 @@
-import { ConfirmDialog } from "../../components/ConfirmDialog";
-import { UseProjectInfo } from "./types";
-import { LeftPanel } from "./components/LeftPanel";
-import { RightPanel } from "./components/RightPanel";
-
-interface ProjectInfoLayoutProps extends UseProjectInfo {}
+import { useState } from 'react'
+import { ConfirmDialog } from '../../components/ConfirmDialog'
+import { LeftPanel } from './components/LeftPanel'
+import { RightPanel } from './components/RightPanel'
+import { ProjectDetails, ProjectInfoLayoutProps } from './types'
 
 export function ProjectInfoLayout({
-  projectId,
-  projectPath,
-  isGitRepo,
-  projectDetails,
-  isLoading,
-  isResetDialogOpen,
-  setProjectId,
-  setProjectPath,
-  setIsGitRepo,
-  setProjectDetails,
-  setIsLoading,
-  setIsResetDialogOpen,
-  handleReset
+  project,
+  onReset,
+  onUpdateDetails,
 }: ProjectInfoLayoutProps) {
+  const [isResetDialogOpen, setIsResetDialogOpen] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+
+  const handleReset = async () => {
+    setIsResetDialogOpen(false)
+    onReset()
+  }
+
   return (
     <main className="h-[calc(100vh-40px)] bg-[#1e1e1e] p-4 flex flex-col">
       <div className="flex-1 flex gap-4">
         <LeftPanel
-          projectId={projectId}
-          projectPath={projectPath}
-          isGitRepo={isGitRepo}
-          projectDetails={projectDetails}
+          projectId={project.id}
+          projectPath={project.path}
+          isGitRepo={!!project.git_repo}
+          projectDetails={project.details}
           isLoading={isLoading}
-          setProjectId={setProjectId}
-          setProjectPath={setProjectPath}
-          setIsGitRepo={setIsGitRepo}
-          setProjectDetails={setProjectDetails}
-          setIsLoading={setIsLoading}
-          setIsResetDialogOpen={setIsResetDialogOpen}
+          onUpdateDetails={onUpdateDetails}
+          onOpenResetDialog={() => setIsResetDialogOpen(true)}
         />
 
         <RightPanel
-          projectId={projectId}
-          isGitRepo={isGitRepo}
+          projectId={project.id}
           isLoading={isLoading}
           setIsLoading={setIsLoading}
-          setProjectDetails={setProjectDetails}
+          onUpdateDetails={onUpdateDetails}
         />
       </div>
 
@@ -54,5 +46,5 @@ export function ProjectInfoLayout({
         message="Are you sure? This will reset and delete your project."
       />
     </main>
-  );
+  )
 }
