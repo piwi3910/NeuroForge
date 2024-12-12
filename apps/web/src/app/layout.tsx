@@ -1,7 +1,7 @@
 "use client";
 
 import "./globals.css";
-import { TabLayout } from "../components/TabLayout";
+import { TabLayout } from "../components/tab-layout";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
