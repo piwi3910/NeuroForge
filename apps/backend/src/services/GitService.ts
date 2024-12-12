@@ -1,110 +1,56 @@
-import simpleGit, { SimpleGit } from 'simple-git';
-import { GitService as IGitService } from './git-service/types';
+import { Injectable } from '@nestjs/common'
+import { IsomorphicGitService } from './git-service/IsomorphicGitService'
+import type { GitConfig, GitStatus, GitCommit, GitBranch } from './git-service/types'
 
-export class GitService implements IGitService {
-    private git: SimpleGit;
+@Injectable()
+export class GitService {
+  private gitService: IsomorphicGitService
 
-    constructor() {
-        this.git = simpleGit();
-    }
+  constructor() {
+    this.gitService = new IsomorphicGitService()
+  }
 
-    // Basic Operations
-    async initRepository(projectPath: string): Promise<void> {
-        console.log('Initializing git repository at:', projectPath);
-        await this.git.cwd(projectPath);
-        await this.git.init();
-        console.log('Git repository initialized');
-    }
+  async initRepository(path: string): Promise<void> {
+    await this.gitService.init(path)
+  }
 
-    async cloneRepository(url: string, projectPath: string): Promise<void> {
-        await this.git.clone(url, projectPath);
-    }
+  async cloneRepository(url: string, path: string): Promise<void> {
+    await this.gitService.clone(url, path)
+  }
 
-    async getStatus(projectPath: string) {
-        await this.git.cwd(projectPath);
-        return await this.git.status();
-    }
+  async addFile(path: string, filepath: string): Promise<void> {
+    await this.gitService.add(path, filepath)
+  }
 
-    async getLog(projectPath: string) {
-        await this.git.cwd(projectPath);
-        return await this.git.log();
-    }
+  async commit(path: string, message: string): Promise<string> {
+    return this.gitService.commit(path, message)
+  }
 
-    // Commit Operations
-    async createInitialCommit(projectPath: string): Promise<void> {
-        await this.git.cwd(projectPath);
-        await this.git.add('.');
-        await this.git.commit('Initial commit');
-    }
+  async push(path: string): Promise<void> {
+    await this.gitService.push(path)
+  }
 
-    async commitChanges(projectPath: string, message: string): Promise<void> {
-        await this.git.cwd(projectPath);
-        await this.git.add('.');
-        await this.git.commit(message);
-    }
+  async pull(path: string): Promise<void> {
+    await this.gitService.pull(path)
+  }
 
-    // Branch Operations
-    async getCurrentBranch(projectPath: string): Promise<string> {
-        await this.git.cwd(projectPath);
-        const status = await this.git.status();
-        return status.current || 'HEAD';
-    }
+  async getStatus(path: string): Promise<GitStatus> {
+    return this.gitService.status(path)
+  }
 
-    async createBranch(projectPath: string, branchName: string): Promise<void> {
-        await this.git.cwd(projectPath);
-        await this.git.checkoutLocalBranch(branchName);
-    }
+  async getLog(path: string): Promise<GitCommit[]> {
+    return this.gitService.log(path)
+  }
 
-    async switchBranch(projectPath: string, branchName: string): Promise<void> {
-        await this.git.cwd(projectPath);
-        await this.git.checkout(branchName);
-    }
+  async getBranches(path: string): Promise<GitBranch[]> {
+    return this.gitService.branches(path)
+  }
 
-    // Tag Operations
-    async createTag(projectPath: string, tagName: string): Promise<void> {
-        await this.git.cwd(projectPath);
-        try {
-            // Try to delete the tag if it exists
-            try {
-                await this.git.tag(['-d', tagName]);
-            } catch (error) {
-                // Tag doesn't exist, that's fine
-            }
-            // Create the new tag
-            await this.git.addTag(tagName);
-        } catch (error) {
-            console.error('Failed to create tag:', error);
-            throw error;
-        }
-    }
+  async checkoutBranch(path: string, branch: string): Promise<void> {
+    await this.gitService.checkout(path, branch)
+  }
 
-    async checkoutTag(projectPath: string, tagName: string): Promise<void> {
-        await this.git.cwd(projectPath);
-        await this.git.checkout(tagName);
-    }
-
-    async listTags(projectPath: string): Promise<string[]> {
-        await this.git.cwd(projectPath);
-        const tags = await this.git.tags();
-        return tags.all;
-    }
-
-    // Remote Operations
-    async push(projectPath: string, remote: string = 'origin', branch?: string): Promise<void> {
-        await this.git.cwd(projectPath);
-        if (branch) {
-            await this.git.push(remote, branch);
-        } else {
-            await this.git.push();
-        }
-    }
-
-    async pull(projectPath: string, remote: string = 'origin', branch?: string): Promise<void> {
-        await this.git.cwd(projectPath);
-        if (branch) {
-            await this.git.pull(remote, branch);
-        } else {
-            await this.git.pull();
-        }
-    }
+  async setConfig(path: string, config: GitConfig): Promise<void> {
+    await this.gitService.setConfig(path, config)
+  }
 }
