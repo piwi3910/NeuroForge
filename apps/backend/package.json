@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node dist/index.js",
     "dev": "nodemon",
-    "build": "npm run generate:api && tsc",
+    "build": "tsc",
     "lint": "eslint src --ext .ts",
     "test": "jest",
     "migration:create": "mikro-orm migration:create",
@@ -14,8 +14,7 @@
     "migration:down": "mikro-orm migration:down",
     "schema:fresh": "mikro-orm schema:fresh --run",
     "schema:update": "mikro-orm schema:update --run",
-    "generate:api": "node openapi-codegen.js",
-    "validate:api": "openapi-generator-cli validate -i src/openapi/openapi.yaml"
+    "generate:api": "npx swagger-typescript-api -p src/openapi/openapi.yaml -o src/generated -n api.ts"
   },
   "mikro-orm": {
     "useTsNode": true,
@@ -45,7 +44,6 @@
     "uuid": "^11.0.3"
   },
   "devDependencies": {
-    "@openapitools/openapi-generator-cli": "^2.15.3",
     "@types/cors": "^2.8.13",
     "@types/express": "^4.17.17",
     "@types/node": "^20.11.24",
