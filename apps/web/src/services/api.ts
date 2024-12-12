@@ -1,4 +1,4 @@
-import { ApiClient, ChatResponse, Project } from '../types/api';
+import { ApiClient, ChatResponse, Project } from '@/types/api';
 
 class ApiClientImpl implements ApiClient {
     private baseUrl: string;
