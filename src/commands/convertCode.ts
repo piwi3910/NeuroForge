@@ -128,8 +128,13 @@ export class ConvertCodeCommand {
                     targetLanguage: selected.option.targetLanguage
                 });
 
-                // Show preview and apply changes
-                await this.showConversionPreview(code, convertedCode.content, selected.option);
+                // Show in diff editor
+                await this.showConversionDiff(
+                    code,
+                    convertedCode.content,
+                    selected.option.sourceLanguage,
+                    selected.option.targetLanguage
+                );
             });
         } catch (error) {
             vscode.window.showErrorMessage(`Failed to convert code: ${error}`);
@@ -137,160 +142,78 @@ export class ConvertCodeCommand {
     }
 
     /**
-     * Shows a preview of the converted code
+     * Shows the conversion diff in VSCode's diff editor
      * @param originalCode Original code
      * @param convertedCode Converted code
-     * @param option Conversion option
+     * @param sourceLanguage Source language
+     * @param targetLanguage Target language
      */
-    private async showConversionPreview(
+    private async showConversionDiff(
         originalCode: string,
         convertedCode: string,
-        option: ConversionOption
+        sourceLanguage: string,
+        targetLanguage: string
     ): Promise<void> {
-        const panel = vscode.window.createWebviewPanel(
-            'codeConversion',
-            `Convert ${option.sourceLanguage} to ${option.targetLanguage}`,
-            vscode.ViewColumn.Beside,
-            {
-                enableScripts: true
-            }
+        // Create URIs for the diff editor
+        const originalUri = vscode.Uri.parse(`untitled:Original.${sourceLanguage}`);
+        const convertedUri = vscode.Uri.parse(`untitled:Converted.${targetLanguage}`);
+
+        // Create the documents
+        const originalDoc = await vscode.workspace.openTextDocument(originalUri);
+        const convertedDoc = await vscode.workspace.openTextDocument(convertedUri);
+
+        // Apply the content
+        const edit = new vscode.WorkspaceEdit();
+        edit.insert(originalUri, new vscode.Position(0, 0), originalCode);
+        edit.insert(convertedUri, new vscode.Position(0, 0), convertedCode);
+        await vscode.workspace.applyEdit(edit);
+
+        // Show diff
+        await vscode.commands.executeCommand('vscode.diff',
+            originalUri,
+            convertedUri,
+            `Convert ${sourceLanguage} to ${targetLanguage}`
         );
 
-        panel.webview.html = this.getPreviewHtml(originalCode, convertedCode, option);
+        // Add apply button to editor title
+        const applyButton = vscode.window.createStatusBarItem(
+            vscode.StatusBarAlignment.Right,
+            100
+        );
+        applyButton.text = "$(check) Apply Conversion";
+        applyButton.tooltip = "Apply the converted code";
+        applyButton.command = {
+            command: 'neuroforge.applyConversion',
+            title: 'Apply Conversion',
+            arguments: [convertedCode]
+        };
+        applyButton.show();
 
-        // Handle messages from the webview
-        panel.webview.onDidReceiveMessage(async message => {
-            switch (message.command) {
-                case 'applyConversion':
-                    await this.applyConversion(message.code);
-                    panel.dispose();
-                    break;
-                case 'copyToClipboard':
-                    await vscode.env.clipboard.writeText(message.code);
-                    vscode.window.showInformationMessage('Converted code copied to clipboard!');
-                    break;
+        // Register apply command
+        const disposable = vscode.commands.registerCommand(
+            'neuroforge.applyConversion',
+            async (newCode: string) => {
+                const editor = vscode.window.activeTextEditor;
+                if (!editor) {
+                    return;
+                }
+
+                await editor.edit(editBuilder => {
+                    if (editor.selection.isEmpty) {
+                        const fullRange = new vscode.Range(
+                            new vscode.Position(0, 0),
+                            new vscode.Position(editor.document.lineCount - 1, editor.document.lineAt(editor.document.lineCount - 1).text.length)
+                        );
+                        editBuilder.replace(fullRange, newCode);
+                    } else {
+                        editBuilder.replace(editor.selection, newCode);
+                    }
+                });
+
+                applyButton.dispose();
+                disposable.dispose();
+                vscode.window.showInformationMessage('Code conversion applied successfully!');
             }
-        });
-    }
-
-    /**
-     * Applies the converted code
-     * @param newCode Converted code
-     */
-    private async applyConversion(newCode: string): Promise<void> {
-        const editor = vscode.window.activeTextEditor;
-        if (!editor) {
-            return;
-        }
-
-        const selection = editor.selection;
-        await editor.edit(editBuilder => {
-            if (selection.isEmpty) {
-                const fullRange = new vscode.Range(
-                    new vscode.Position(0, 0),
-                    new vscode.Position(editor.document.lineCount - 1, editor.document.lineAt(editor.document.lineCount - 1).text.length)
-                );
-                editBuilder.replace(fullRange, newCode);
-            } else {
-                editBuilder.replace(selection, newCode);
-            }
-        });
-
-        vscode.window.showInformationMessage('Code conversion applied successfully!');
-    }
-
-    /**
-     * Generates the HTML for the preview webview
-     */
-    private getPreviewHtml(originalCode: string, convertedCode: string, option: ConversionOption): string {
-        return `<!DOCTYPE html>
-        <html lang="en">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Code Conversion Preview</title>
-            <style>
-                body {
-                    font-family: var(--vscode-font-family);
-                    padding: 20px;
-                }
-                .container {
-                    display: grid;
-                    grid-template-columns: 1fr 1fr;
-                    gap: 20px;
-                }
-                .code-block {
-                    background-color: var(--vscode-editor-background);
-                    padding: 10px;
-                    border-radius: 5px;
-                    white-space: pre-wrap;
-                }
-                .actions {
-                    margin-top: 20px;
-                    display: flex;
-                    gap: 10px;
-                }
-                button {
-                    background-color: var(--vscode-button-background);
-                    color: var(--vscode-button-foreground);
-                    border: none;
-                    padding: 8px 12px;
-                    cursor: pointer;
-                    border-radius: 3px;
-                }
-                button:hover {
-                    background-color: var(--vscode-button-hoverBackground);
-                }
-            </style>
-        </head>
-        <body>
-            <h2>Code Conversion Preview</h2>
-            <div class="container">
-                <div>
-                    <h3>${option.sourceLanguage}</h3>
-                    <div class="code-block">${this.escapeHtml(originalCode)}</div>
-                </div>
-                <div>
-                    <h3>${option.targetLanguage}</h3>
-                    <div class="code-block">${this.escapeHtml(convertedCode)}</div>
-                </div>
-            </div>
-            <div class="actions">
-                <button onclick="applyConversion()">Apply Conversion</button>
-                <button onclick="copyToClipboard()">Copy to Clipboard</button>
-            </div>
-            <script>
-                const vscode = acquireVsCodeApi();
-                
-                function applyConversion() {
-                    vscode.postMessage({
-                        command: 'applyConversion',
-                        code: ${JSON.stringify(convertedCode)}
-                    });
-                }
-                
-                function copyToClipboard() {
-                    vscode.postMessage({
-                        command: 'copyToClipboard',
-                        code: ${JSON.stringify(convertedCode)}
-                    });
-                }
-            </script>
-        </body>
-        </html>`;
-    }
-
-    /**
-     * Escapes HTML special characters
-     * @param text Text to escape
-     * @returns Escaped text
-     */
-    private escapeHtml(text: string): string {
-        return text
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#039;');
+        );
     }
 }

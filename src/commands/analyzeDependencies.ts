@@ -1,12 +1,20 @@
 import * as vscode from 'vscode';
 import { DependencyAnalyzer } from '../services/dependencyAnalyzer';
 import { CacheService } from '../services/cacheService';
+import { DependencyTreeProvider } from '../views/dependencyTreeProvider';
 
 export class AnalyzeDependenciesCommand {
     private readonly dependencyAnalyzer: DependencyAnalyzer;
+    private readonly treeProvider: DependencyTreeProvider;
+    private treeView: vscode.TreeView<any>;
 
     constructor(cacheService: CacheService) {
         this.dependencyAnalyzer = new DependencyAnalyzer(cacheService);
+        this.treeProvider = new DependencyTreeProvider(this.dependencyAnalyzer);
+        this.treeView = vscode.window.createTreeView('neuroForgeDependencies', {
+            treeDataProvider: this.treeProvider,
+            showCollapseAll: true
+        });
     }
 
     /**
@@ -14,10 +22,29 @@ export class AnalyzeDependenciesCommand {
      * @param context The extension context
      */
     public register(context: vscode.ExtensionContext): void {
-        const disposable = vscode.commands.registerCommand('neuroforge.analyzeDependencies', async () => {
+        // Register the main command
+        const analyzeCommand = vscode.commands.registerCommand('neuroforge.analyzeDependencies', async () => {
             await this.execute();
         });
-        context.subscriptions.push(disposable);
+
+        // Register the tree view
+        const treeViewDisposable = this.treeView;
+
+        // Register click handlers for tree items
+        const openFileCommand = vscode.commands.registerCommand('neuroforge.openDependencyFile', (filePath: string) => {
+            this.openFile(filePath);
+        });
+
+        const showDependencyDetailsCommand = vscode.commands.registerCommand('neuroforge.showDependencyDetails', (filePath: string) => {
+            this.showDependencyDetails(filePath);
+        });
+
+        context.subscriptions.push(
+            analyzeCommand,
+            treeViewDisposable,
+            openFileCommand,
+            showDependencyDetailsCommand
+        );
     }
 
     /**
@@ -31,7 +58,25 @@ export class AnalyzeDependenciesCommand {
                 cancellable: false
             }, async (progress) => {
                 const analysis = await this.dependencyAnalyzer.analyzeDependencies(progress);
-                await this.showAnalysisResults(analysis);
+                
+                // Update tree view with analysis results
+                this.treeProvider.refresh(analysis);
+                
+                // Show the dependencies view
+                await vscode.commands.executeCommand('neuroForgeDependencies.focus');
+
+                // Show summary in status bar
+                const issues = analysis.cycles.length + analysis.unused.length + analysis.missing.length;
+                if (issues > 0) {
+                    vscode.window.showWarningMessage(
+                        `Found ${issues} dependency issues: ` +
+                        `${analysis.cycles.length} cycles, ` +
+                        `${analysis.unused.length} unused exports, ` +
+                        `${analysis.missing.length} missing imports`
+                    );
+                } else {
+                    vscode.window.showInformationMessage('No dependency issues found.');
+                }
             });
         } catch (error) {
             vscode.window.showErrorMessage(`Failed to analyze dependencies: ${error}`);
@@ -39,128 +84,65 @@ export class AnalyzeDependenciesCommand {
     }
 
     /**
-     * Shows the dependency analysis results
-     * @param analysis Analysis results
+     * Opens a file in the editor
+     * @param filePath File path to open
      */
-    private async showAnalysisResults(analysis: any): Promise<void> {
-        const panel = vscode.window.createWebviewPanel(
-            'dependencyAnalysis',
-            'Dependency Analysis',
-            vscode.ViewColumn.One,
-            {
-                enableScripts: true
+    private async openFile(filePath: string): Promise<void> {
+        try {
+            const document = await vscode.workspace.openTextDocument(filePath);
+            await vscode.window.showTextDocument(document);
+        } catch (error) {
+            vscode.window.showErrorMessage(`Failed to open file: ${error}`);
+        }
+    }
+
+    /**
+     * Shows dependency details in a diff view
+     * @param filePath File to show dependencies for
+     */
+    private async showDependencyDetails(filePath: string): Promise<void> {
+        try {
+            const analysis = await this.dependencyAnalyzer.analyzeDependencies();
+            const node = analysis.dependencies.get(filePath);
+
+            if (!node) {
+                return;
             }
-        );
 
-        const graph = this.dependencyAnalyzer.generateDependencyGraph(analysis.dependencies);
-        const issues = this.formatIssues(analysis);
+            // Create details document
+            const details = [
+                `Dependencies for: ${filePath}`,
+                '='.repeat(40),
+                '',
+                'Imports:',
+                ...node.imports.map(imp => `  - ${imp}`),
+                '',
+                'Exports:',
+                ...node.exports.map(exp => `  - ${exp}`),
+                '',
+                'Dependencies:',
+                ...Array.from(node.dependencies).map(dep => `  - ${dep}`),
+                '',
+                'Dependents:',
+                ...Array.from(node.dependents).map(dep => `  - ${dep}`)
+            ].join('\n');
 
-        panel.webview.html = this.getWebviewContent(graph, issues);
-    }
+            // Show in diff editor
+            const originalUri = vscode.Uri.file(filePath);
+            const detailsUri = originalUri.with({ scheme: 'untitled', path: `${filePath}.dependencies` });
 
-    /**
-     * Formats analysis issues for display
-     * @param analysis Analysis results
-     * @returns Formatted issues
-     */
-    private formatIssues(analysis: any): string {
-        let issues = '';
+            const detailsDoc = await vscode.workspace.openTextDocument(detailsUri);
+            const edit = new vscode.WorkspaceEdit();
+            edit.insert(detailsUri, new vscode.Position(0, 0), details);
+            await vscode.workspace.applyEdit(edit);
 
-        if (analysis.cycles.length > 0) {
-            issues += '<h3>🔄 Circular Dependencies</h3><ul>';
-            analysis.cycles.forEach((cycle: string[]) => {
-                issues += `<li>${cycle.join(' → ')}</li>`;
-            });
-            issues += '</ul>';
+            await vscode.commands.executeCommand('vscode.diff',
+                originalUri,
+                detailsUri,
+                `Dependency Analysis: ${filePath.split('/').pop()}`
+            );
+        } catch (error) {
+            vscode.window.showErrorMessage(`Failed to show dependency details: ${error}`);
         }
-
-        if (analysis.unused.length > 0) {
-            issues += '<h3>⚠️ Unused Exports</h3><ul>';
-            analysis.unused.forEach((file: string) => {
-                issues += `<li>${file}</li>`;
-            });
-            issues += '</ul>';
-        }
-
-        if (analysis.missing.length > 0) {
-            issues += '<h3>❌ Missing Imports</h3><ul>';
-            analysis.missing.forEach((imp: string) => {
-                issues += `<li>${imp}</li>`;
-            });
-            issues += '</ul>';
-        }
-
-        return issues;
-    }
-
-    /**
-     * Generates the webview HTML content
-     * @param graph Dependency graph DOT format
-     * @param issues Formatted issues
-     * @returns HTML content
-     */
-    private getWebviewContent(graph: string, issues: string): string {
-        return `<!DOCTYPE html>
-        <html lang="en">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Dependency Analysis</title>
-            <script src="https://d3js.org/d3.v7.min.js"></script>
-            <script src="https://unpkg.com/@hpcc-js/wasm@1.12.8/dist/index.min.js"></script>
-            <script src="https://unpkg.com/d3-graphviz@4.0.0/build/d3-graphviz.js"></script>
-            <style>
-                body {
-                    font-family: var(--vscode-font-family);
-                    padding: 20px;
-                    display: grid;
-                    grid-template-columns: 2fr 1fr;
-                    gap: 20px;
-                }
-                #graph {
-                    border: 1px solid var(--vscode-panel-border);
-                    border-radius: 5px;
-                    padding: 10px;
-                    height: 600px;
-                }
-                #issues {
-                    border: 1px solid var(--vscode-panel-border);
-                    border-radius: 5px;
-                    padding: 20px;
-                    overflow-y: auto;
-                    height: 600px;
-                }
-                h2, h3 {
-                    color: var(--vscode-editor-foreground);
-                }
-                ul {
-                    padding-left: 20px;
-                }
-                li {
-                    margin-bottom: 5px;
-                }
-            </style>
-        </head>
-        <body>
-            <div>
-                <h2>Dependency Graph</h2>
-                <div id="graph"></div>
-            </div>
-            <div>
-                <h2>Analysis Results</h2>
-                <div id="issues">
-                    ${issues || 'No issues found'}
-                </div>
-            </div>
-            <script>
-                const graphviz = d3.select("#graph").graphviz()
-                    .zoom(true)
-                    .fit(true);
-                
-                const dotSource = \`${graph}\`;
-                graphviz.renderDot(dotSource);
-            </script>
-        </body>
-        </html>`;
     }
 }

@@ -17,6 +17,25 @@
   ],
   "main": "./out/extension.js",
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "neuroforge-explorer",
+          "title": "NeuroForge",
+          "icon": "$(brain)"
+        }
+      ]
+    },
+    "views": {
+      "neuroforge-explorer": [
+        {
+          "id": "neuroForgeDependencies",
+          "name": "Dependencies",
+          "icon": "$(references)",
+          "contextualTitle": "Project Dependencies"
+        }
+      ]
+    },
     "commands": [
       {
         "command": "neuroforge.explainCode",
@@ -49,10 +68,129 @@
         "icon": "$(sync)"
       },
       {
+        "command": "neuroforge.analyzeDependencies",
+        "title": "NeuroForge: Analyze Dependencies",
+        "category": "NeuroForge",
+        "icon": "$(references)"
+      },
+      {
+        "command": "neuroforge.openDependencyFile",
+        "title": "Open File",
+        "icon": "$(go-to-file)"
+      },
+      {
+        "command": "neuroforge.showDependencyDetails",
+        "title": "Show Details",
+        "icon": "$(info)"
+      },
+      {
         "command": "neuroforge.showMenu",
         "title": "NeuroForge: Show Actions Menu",
         "category": "NeuroForge",
         "icon": "$(brain)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "neuroforge.analyzeDependencies",
+          "when": "view == neuroForgeDependencies",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "neuroforge.openDependencyFile",
+          "when": "view == neuroForgeDependencies && viewItem == file",
+          "group": "inline"
+        },
+        {
+          "command": "neuroforge.showDependencyDetails",
+          "when": "view == neuroForgeDependencies && viewItem == file",
+          "group": "inline"
+        }
+      ],
+      "editor/context": [
+        {
+          "submenu": "neuroforge.menu",
+          "group": "navigation"
+        }
+      ],
+      "neuroforge.menu": [
+        {
+          "command": "neuroforge.explainCode",
+          "group": "1_analysis"
+        },
+        {
+          "command": "neuroforge.generateDocs",
+          "group": "1_analysis"
+        },
+        {
+          "command": "neuroforge.suggestRefactor",
+          "group": "2_modification"
+        },
+        {
+          "command": "neuroforge.generateTests",
+          "group": "2_modification"
+        },
+        {
+          "command": "neuroforge.convertCode",
+          "group": "2_modification"
+        },
+        {
+          "command": "neuroforge.analyzeDependencies",
+          "group": "3_analysis"
+        }
+      ]
+    },
+    "submenus": [
+      {
+        "id": "neuroforge.menu",
+        "label": "NeuroForge"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "neuroforge.explainCode",
+        "key": "ctrl+shift+e",
+        "mac": "cmd+shift+e",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "neuroforge.generateDocs",
+        "key": "ctrl+shift+d",
+        "mac": "cmd+shift+d",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "neuroforge.suggestRefactor",
+        "key": "ctrl+shift+r",
+        "mac": "cmd+shift+r",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "neuroforge.generateTests",
+        "key": "ctrl+shift+t",
+        "mac": "cmd+shift+t",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "neuroforge.convertCode",
+        "key": "ctrl+shift+c",
+        "mac": "cmd+shift+c",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "neuroforge.analyzeDependencies",
+        "key": "ctrl+shift+a",
+        "mac": "cmd+shift+a",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "neuroforge.showMenu",
+        "key": "ctrl+shift+space",
+        "mac": "cmd+shift+space",
+        "when": "editorTextFocus"
       }
     ],
     "configuration": {
@@ -134,81 +272,7 @@
           }
         }
       }
-    },
-    "menus": {
-      "editor/context": [
-        {
-          "submenu": "neuroforge.menu",
-          "group": "navigation"
-        }
-      ],
-      "neuroforge.menu": [
-        {
-          "command": "neuroforge.explainCode",
-          "group": "1_analysis"
-        },
-        {
-          "command": "neuroforge.generateDocs",
-          "group": "1_analysis"
-        },
-        {
-          "command": "neuroforge.suggestRefactor",
-          "group": "2_modification"
-        },
-        {
-          "command": "neuroforge.generateTests",
-          "group": "2_modification"
-        },
-        {
-          "command": "neuroforge.convertCode",
-          "group": "2_modification"
-        }
-      ]
-    },
-    "submenus": [
-      {
-        "id": "neuroforge.menu",
-        "label": "NeuroForge"
-      }
-    ],
-    "keybindings": [
-      {
-        "command": "neuroforge.explainCode",
-        "key": "ctrl+shift+e",
-        "mac": "cmd+shift+e",
-        "when": "editorTextFocus"
-      },
-      {
-        "command": "neuroforge.generateDocs",
-        "key": "ctrl+shift+d",
-        "mac": "cmd+shift+d",
-        "when": "editorTextFocus"
-      },
-      {
-        "command": "neuroforge.suggestRefactor",
-        "key": "ctrl+shift+r",
-        "mac": "cmd+shift+r",
-        "when": "editorTextFocus"
-      },
-      {
-        "command": "neuroforge.generateTests",
-        "key": "ctrl+shift+t",
-        "mac": "cmd+shift+t",
-        "when": "editorTextFocus"
-      },
-      {
-        "command": "neuroforge.convertCode",
-        "key": "ctrl+shift+c",
-        "mac": "cmd+shift+c",
-        "when": "editorTextFocus"
-      },
-      {
-        "command": "neuroforge.showMenu",
-        "key": "ctrl+shift+space",
-        "mac": "cmd+shift+space",
-        "when": "editorTextFocus"
-      }
-    ]
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
