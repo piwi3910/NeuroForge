@@ -35,6 +35,13 @@
   "main": "./out/extension.js",
   "contributes": {
     "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "neuroforge-sidebar",
+          "title": "NeuroForge",
+          "icon": "$(brain)"
+        }
+      ],
       "panel": [
         {
           "id": "neuroforge-panel",
@@ -44,18 +51,18 @@
       ]
     },
     "views": {
+      "neuroforge-sidebar": [
+        {
+          "id": "dependencyExplorer",
+          "name": "Dependencies",
+          "icon": "$(brain)"
+        }
+      ],
       "neuroforge-panel": [
         {
           "type": "webview",
           "id": "neuroforge.chatView",
           "name": "Chat",
-          "icon": "$(brain)"
-        }
-      ],
-      "explorer": [
-        {
-          "id": "dependencyExplorer",
-          "name": "Dependencies",
           "icon": "$(brain)"
         }
       ]
