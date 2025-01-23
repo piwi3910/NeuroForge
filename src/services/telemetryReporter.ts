@@ -1,34 +1,47 @@
 import * as vscode from 'vscode';
 
-export class TelemetryReporter implements vscode.Disposable {
-    private isDisposed: boolean = false;
+export class TelemetryReporter {
+  private readonly extensionId: string;
+  private readonly extensionVersion: string;
+  private enabled: boolean;
 
-    constructor() {
-        // Initialize telemetry service
+  constructor(extensionId: string, extensionVersion: string) {
+    this.extensionId = extensionId;
+    this.extensionVersion = extensionVersion;
+    this.enabled = vscode.workspace.getConfiguration('neuroforge').get('telemetry.enabled', true);
+
+    // Listen for configuration changes
+    vscode.workspace.onDidChangeConfiguration(e => {
+      if (e.affectsConfiguration('neuroforge.telemetry.enabled')) {
+        this.enabled = vscode.workspace
+          .getConfiguration('neuroforge')
+          .get('telemetry.enabled', true);
+      }
+    });
+  }
+
+  public sendError(error: Error, _properties?: Record<string, string>): void {
+    if (!this.enabled) {
+      return;
     }
 
-    /**
-     * Sends a telemetry event
-     * @param eventName Name of the event
-     * @param properties Additional properties for the event
-     */
-    public sendTelemetryEvent(eventName: string, properties?: Record<string, string>): void {
-        if (this.isDisposed) {
-            return;
-        }
+    // Use VSCode's built-in error reporting
+    void vscode.window.showErrorMessage(`NeuroForge Error: ${error.message}`);
+  }
 
-        // TODO: Implement proper telemetry service integration
-        console.log('Telemetry:', eventName, properties);
+  public sendEvent(eventName: string, _properties?: Record<string, string>): void {
+    if (!this.enabled) {
+      return;
     }
 
-    /**
-     * Disposes the telemetry reporter
-     */
-    public dispose(): void {
-        if (this.isDisposed) {
-            return;
-        }
-
-        this.isDisposed = true;
+    // TODO: Implement proper telemetry reporting
+    // For now, we'll just log errors to help with debugging
+    if (eventName.includes('error') || eventName.includes('failure')) {
+      void vscode.window.showErrorMessage(`NeuroForge Event: ${eventName}`);
     }
+  }
+
+  public dispose(): void {
+    // Clean up any resources if needed
+  }
 }

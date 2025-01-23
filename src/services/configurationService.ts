@@ -1,77 +1,87 @@
 import * as vscode from 'vscode';
 
-export interface AutoApproveSettings {
-    readOperations: boolean;
-    writeOperations: boolean;
-    browserActions: boolean;
-    retryFailedRequests: boolean;
+interface ValidationResult {
+  isValid: boolean;
+  message: string;
 }
 
-export interface AIProviderSettings {
-    provider: 'anthropic' | 'openai' | 'local';
-    apiKey: string;
-    model: string;
-    maxTokens: number;
-    temperature: number;
-    useCustomBaseUrl: boolean;
-    customBaseUrl?: string;
+interface NeuroForgeConfig {
+  provider: string;
+  apiKey: string;
+  maxTokens: number;
+  temperature: number;
 }
 
 export class ConfigurationService {
-    private readonly configPrefix = 'neuroforge';
+  private readonly config: vscode.WorkspaceConfiguration;
 
-    public getConfiguration<T>(section: string): T {
-        return vscode.workspace.getConfiguration(this.configPrefix).get<T>(section)!;
+  constructor() {
+    this.config = vscode.workspace.getConfiguration('neuroforge');
+  }
+
+  public getConfig(): NeuroForgeConfig {
+    return {
+      provider: this.config.get('provider', 'anthropic'),
+      apiKey: this.config.get('apiKey', ''),
+      maxTokens: this.config.get('maxTokens', 8192),
+      temperature: this.config.get('temperature', 0.7),
+    };
+  }
+
+  public async validateSettings(): Promise<string[]> {
+    const errors: string[] = [];
+    const config = this.getConfig();
+
+    // Validate provider
+    const validProviders = ['anthropic', 'openai'];
+    if (!validProviders.includes(config.provider)) {
+      errors.push(
+        `Invalid provider: ${config.provider}. Must be one of: ${validProviders.join(', ')}`
+      );
     }
 
-    public async updateConfiguration(section: string, value: any, target: vscode.ConfigurationTarget = vscode.ConfigurationTarget.Global): Promise<void> {
-        await vscode.workspace.getConfiguration(this.configPrefix).update(section, value, target);
+    // Validate API key
+    if (!config.apiKey) {
+      errors.push('API key is required');
     }
 
-    public getAISettings(): AIProviderSettings {
-        const config = vscode.workspace.getConfiguration(this.configPrefix);
+    // Validate max tokens
+    if (config.maxTokens < 1 || config.maxTokens > 32768) {
+      errors.push('Max tokens must be between 1 and 32768');
+    }
+
+    // Validate temperature
+    if (config.temperature < 0 || config.temperature > 1) {
+      errors.push('Temperature must be between 0 and 1');
+    }
+
+    return errors;
+  }
+
+  public async updateSetting<T extends keyof NeuroForgeConfig>(
+    key: T,
+    value: NeuroForgeConfig[T]
+  ): Promise<ValidationResult> {
+    try {
+      await this.config.update(key, value, vscode.ConfigurationTarget.Global);
+      const errors = await this.validateSettings();
+
+      if (errors.length > 0) {
         return {
-            provider: config.get('provider', 'anthropic'),
-            apiKey: config.get('apiKey', ''),
-            model: config.get('model', 'claude-3-sonnet-20240229'),
-            maxTokens: config.get('maxTokens', 8192),
-            temperature: config.get('temperature', 0.7),
-            useCustomBaseUrl: config.get('useCustomBaseUrl', false),
-            customBaseUrl: config.get('customBaseUrl', '')
+          isValid: false,
+          message: errors.join('\n'),
         };
+      }
+
+      return {
+        isValid: true,
+        message: `Successfully updated ${key}`,
+      };
+    } catch (error) {
+      return {
+        isValid: false,
+        message: `Failed to update ${key}: ${error}`,
+      };
     }
-
-    public getAutoApproveSettings(): AutoApproveSettings {
-        const config = vscode.workspace.getConfiguration(this.configPrefix);
-        const autoApprove = config.get<any>('autoApprove', {});
-        return {
-            readOperations: autoApprove.readOperations ?? false,
-            writeOperations: autoApprove.writeOperations ?? false,
-            browserActions: autoApprove.browserActions ?? false,
-            retryFailedRequests: autoApprove.retryFailedRequests ?? true
-        };
-    }
-
-    public async validateSettings(): Promise<string[]> {
-        const errors: string[] = [];
-        const settings = this.getAISettings();
-
-        if (!settings.apiKey && settings.provider !== 'local') {
-            errors.push('API key is required for the selected provider');
-        }
-
-        if (settings.maxTokens < 1) {
-            errors.push('Max tokens must be greater than 0');
-        }
-
-        if (settings.temperature < 0 || settings.temperature > 1) {
-            errors.push('Temperature must be between 0 and 1');
-        }
-
-        if (settings.useCustomBaseUrl && !settings.customBaseUrl) {
-            errors.push('Custom base URL is required when using custom URL option');
-        }
-
-        return errors;
-    }
+  }
 }

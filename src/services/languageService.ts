@@ -1,45 +1,63 @@
 import * as vscode from 'vscode';
 
 export class LanguageService {
-    /**
-     * Analyzes the given code and returns relevant information
-     * @param code The code to analyze
-     * @returns Analysis result including code structure and context
-     */
-    public async analyzeCode(code: string): Promise<any> {
-        // TODO: Implement proper code analysis
-        return {
-            language: this.detectLanguage(code),
-            structure: this.parseCodeStructure(code),
-        };
-    }
+  private readonly supportedLanguages = [
+    'TypeScript',
+    'JavaScript',
+    'Python',
+    'Java',
+    'C#',
+    'Go',
+    'Rust',
+    'Ruby',
+    'PHP',
+    'Swift',
+    'Kotlin',
+  ];
 
-    /**
-     * Detects the programming language of the given code
-     * @param code The code to analyze
-     * @returns Detected language identifier
-     */
-    private detectLanguage(code: string): string {
-        const editor = vscode.window.activeTextEditor;
-        if (editor) {
-            return editor.document.languageId;
+  public getSupportedLanguages(): string[] {
+    return this.supportedLanguages;
+  }
+
+  public getLanguageId(_code: string): string {
+    // TODO: Implement language detection
+    return 'typescript';
+  }
+
+  public async formatCode(code: string, language: string): Promise<string> {
+    try {
+      const doc = await vscode.workspace.openTextDocument({
+        content: code,
+        language: language.toLowerCase(),
+      });
+
+      const edits = await vscode.commands.executeCommand<vscode.TextEdit[]>(
+        'vscode.executeFormatDocumentProvider',
+        doc.uri,
+        {
+          insertSpaces: true,
+          tabSize: 2,
         }
-        // Basic language detection based on code patterns
-        // TODO: Implement more sophisticated language detection
-        return 'unknown';
-    }
+      );
 
-    /**
-     * Parses the code structure to understand its components
-     * @param code The code to parse
-     * @returns Parsed code structure
-     */
-    private parseCodeStructure(code: string): any {
-        // TODO: Implement AST-based parsing
-        return {
-            type: 'basic',
-            content: code.trim(),
-            lines: code.split('\n').length
-        };
+      if (!edits) {
+        return code;
+      }
+
+      // Apply the edits to get the formatted code
+      let formattedCode = code;
+      edits
+        .sort((a, b) => b.range.start.line - a.range.start.line)
+        .forEach(edit => {
+          const start = doc.offsetAt(edit.range.start);
+          const end = doc.offsetAt(edit.range.end);
+          formattedCode =
+            formattedCode.substring(0, start) + edit.newText + formattedCode.substring(end);
+        });
+
+      return formattedCode;
+    } catch (error) {
+      throw new Error(`Failed to format code: ${error}`);
     }
+  }
 }
