@@ -15,6 +15,7 @@ interface SettingsMessage {
 export class SettingsViewProvider implements vscode.WebviewViewProvider {
   private readonly configService: ConfigurationService;
   private readonly aiService: AIService;
+  private currentWebview?: vscode.Webview;
 
   constructor(private readonly extensionUri: vscode.Uri) {
     this.configService = new ConfigurationService();
@@ -31,8 +32,14 @@ export class SettingsViewProvider implements vscode.WebviewViewProvider {
       localResourceRoots: [this.extensionUri],
     };
 
+    this.currentWebview = webviewView.webview;
     webviewView.webview.html = await this._getHtmlForWebview(webviewView.webview);
     this._setWebviewMessageListener(webviewView.webview);
+
+    // Handle webview disposal
+    webviewView.onDidDispose(() => {
+      this.currentWebview = undefined;
+    });
   }
 
   private async _getHtmlForWebview(webview: vscode.Webview): Promise<string> {
@@ -174,13 +181,18 @@ export class SettingsViewProvider implements vscode.WebviewViewProvider {
 
           <script nonce="${nonce}">
             const vscode = acquireVsCodeApi();
+            let currentProvider = '${selectedProviderId}';
             
             // Handle provider change
-            document.getElementById('provider').addEventListener('change', (e) => {
-              vscode.postMessage({
-                type: 'providerChanged',
-                value: { provider: e.target.value }
-              });
+            document.getElementById('provider').addEventListener('change', async (e) => {
+              const newProvider = e.target.value;
+              if (newProvider !== currentProvider) {
+                currentProvider = newProvider;
+                vscode.postMessage({
+                  type: 'providerChanged',
+                  value: { provider: newProvider }
+                });
+              }
             });
 
             // Handle save
@@ -273,8 +285,20 @@ export class SettingsViewProvider implements vscode.WebviewViewProvider {
 
           case 'providerChanged':
             if (message.value?.provider) {
-              // Reload the webview with the new provider's settings
-              webview.html = await this._getHtmlForWebview(webview);
+              try {
+                // Update the provider setting immediately
+                await this.configService.updateSetting('provider', message.value.provider);
+
+                // Then reload the webview with the new provider's settings
+                if (this.currentWebview) {
+                  this.currentWebview.html = await this._getHtmlForWebview(webview);
+                }
+              } catch (error) {
+                void webview.postMessage({
+                  type: 'error',
+                  value: `Failed to change provider: ${error instanceof Error ? error.message : 'Unknown error'}`,
+                });
+              }
             }
             break;
 
