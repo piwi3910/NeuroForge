@@ -1,124 +1,260 @@
-# NeuroForge VSCode Extension Architecture
+# NeuroForge Architecture
 
 ## Overview
-NeuroForge is a VSCode extension designed to be an AI-powered coding assistant that helps developers write, understand, and maintain code more efficiently.
+NeuroForge is a VSCode extension designed as an AI-powered coding assistant that helps developers write, understand, and maintain code more efficiently.
 
-## MVP Features
+## Core Components
 
-### 1. Code Analysis
-- **Inline Code Understanding**: Analyze selected code blocks and provide explanations
-- **Function Documentation**: Generate documentation for functions and methods
-- **Code Review Suggestions**: Basic code quality and best practice recommendations
+### 1. Services Layer
 
-### 2. Code Generation
-- **Function Implementation**: Generate function implementations based on comments/descriptions
-- **Test Case Generation**: Create basic test cases for selected functions
-- **Code Completion**: Context-aware code suggestions
+#### LanguageService
+- Code parsing and analysis
+- Language detection
+- AST manipulation
+- Code structure analysis
 
-### 3. Code Transformation
-- **Code Refactoring**: Suggest and apply basic code refactoring
-- **Format Conversion**: Convert between different code formats (e.g., function styles)
-- **Language Translation**: Convert code between similar languages (e.g., JavaScript to TypeScript)
+#### AIService
+- AI model integration
+- Query processing
+- Response formatting
+- Code generation
+- Pattern analysis
+- Language conversion
 
-## Technical Architecture
+#### TelemetryService
+- Usage tracking
+- Error reporting
+- Feature analytics
+- Performance monitoring
 
-### Components
+### 2. Command Handlers
 
-1. **Extension Core**
-   - Handles VSCode integration
-   - Manages extension lifecycle
-   - Coordinates between components
+#### ExplainCodeCommand
+- Code block analysis
+- Context-aware explanations
+- Markdown formatting
+- Side-by-side display
 
-2. **Language Service**
-   - Code parsing and analysis
-   - AST manipulation
-   - Language-specific operations
+#### GenerateDocsCommand
+- Documentation generation
+- Language-specific formatting
+- Multiple documentation styles
+- Automatic insertion
 
-3. **AI Service**
-   - Integration with AI models
-   - Query processing
-   - Response formatting
+#### SuggestRefactorCommand
+- Code pattern analysis
+- Refactoring suggestions
+- Interactive preview
+- One-click application
 
-4. **Command Handler**
-   - Register and manage commands
-   - Process user inputs
-   - Execute operations
+#### GenerateTestsCommand
+- Test case generation
+- Framework-specific code
+- Test file organization
+- Coverage suggestions
 
-### Implementation Approach
+#### ConvertCodeCommand
+- Language conversion
+- Interactive preview
+- Style preservation
+- Side-by-side comparison
 
-1. **Phase 1: Basic Infrastructure**
-   - Set up extension structure
-   - Implement command registration
-   - Add basic UI components (status bar, notifications)
+### 3. UI Components
 
-2. **Phase 2: Core Features**
-   - Implement code analysis
-   - Add basic code generation
-   - Create simple transformations
+#### StatusBar Integration
+- Quick access menu
+- Feature status
+- Active indicators
 
-3. **Phase 3: AI Integration**
-   - Connect to AI services
-   - Implement query processing
-   - Add response handling
+#### WebViews
+- Interactive previews
+- Side-by-side comparisons
+- Code highlighting
+- Action buttons
 
-### Data Flow
+#### Context Menus
+- Feature access
+- Contextual actions
+- Grouped commands
 
-1. User triggers command through VSCode
-2. Command handler processes the request
-3. Language service analyzes relevant code
-4. AI service generates appropriate response
-5. Results are displayed to user through VSCode UI
+#### Completion Provider
+- Intelligent suggestions
+- Context awareness
+- Language support
+- Usage analytics
 
-## Extension Settings
+## Data Flow
 
-- `neuroforge.aiModel`: AI model configuration
-- `neuroforge.maxTokens`: Token limit for requests
-- `neuroforge.language`: Primary programming language
-- `neuroforge.autoSuggest`: Enable/disable automatic suggestions
+1. User Input
+   - Command triggers
+   - Code selection
+   - Configuration changes
 
-## Commands
+2. Command Processing
+   - Input validation
+   - Context gathering
+   - Service coordination
 
-- `neuroforge.explainCode`: Explain selected code
-- `neuroforge.generateDocs`: Generate documentation
-- `neuroforge.suggestRefactor`: Suggest refactoring
-- `neuroforge.generateTests`: Generate test cases
-- `neuroforge.convertCode`: Convert code format/language
+3. AI Processing
+   - Query formation
+   - Model interaction
+   - Response parsing
+
+4. Result Presentation
+   - UI updates
+   - Preview generation
+   - Code modification
+
+## Configuration Management
+
+### Settings Categories
+1. AI Model
+   - Model selection
+   - Token limits
+   - Response preferences
+
+2. Language Settings
+   - Primary language
+   - Framework preferences
+   - Style guides
+
+3. Documentation
+   - Style selection
+   - Format preferences
+   - Template customization
+
+4. Testing
+   - Framework selection
+   - File organization
+   - Coverage requirements
+
+5. Code Conversion
+   - Style preservation
+   - Comment handling
+   - Format preferences
+
+## Extension Lifecycle
+
+### Activation
+1. Service initialization
+2. Command registration
+3. UI setup
+4. Event listener attachment
+
+### Operation
+1. Command handling
+2. Service coordination
+3. UI updates
+4. Telemetry tracking
+
+### Deactivation
+1. Resource cleanup
+2. State persistence
+3. Connection closure
+
+## Security Considerations
+
+1. Code Analysis
+   - Secure parsing
+   - Sandbox execution
+   - Input validation
+
+2. AI Integration
+   - Secure communication
+   - Token management
+   - Response validation
+
+3. Data Handling
+   - Local processing
+   - Secure storage
+   - Privacy protection
+
+## Performance Optimization
+
+1. Caching
+   - Analysis results
+   - AI responses
+   - Common patterns
+
+2. Lazy Loading
+   - Service initialization
+   - Resource management
+   - Feature activation
+
+3. Resource Management
+   - Memory optimization
+   - Process limitation
+   - Connection pooling
+
+## Error Handling
+
+1. Input Validation
+   - Code verification
+   - Parameter checking
+   - Context validation
+
+2. Process Recovery
+   - Service resilience
+   - State recovery
+   - Error reporting
+
+3. User Feedback
+   - Error messages
+   - Recovery suggestions
+   - Status updates
+
+## Testing Strategy
+
+1. Unit Tests
+   - Service testing
+   - Command testing
+   - Utility testing
+
+2. Integration Tests
+   - Component interaction
+   - Flow validation
+   - UI integration
+
+3. End-to-End Tests
+   - Feature validation
+   - User scenarios
+   - Performance testing
 
 ## Future Enhancements
 
-1. **Advanced Analysis**
+1. Advanced Analysis
    - Dependency analysis
-   - Performance optimization suggestions
-   - Security vulnerability detection
+   - Performance profiling
+   - Security scanning
 
-2. **Enhanced Generation**
-   - Full component generation
-   - API integration code
-   - Documentation generation
+2. Enhanced Generation
+   - Component generation
+   - API integration
+   - Documentation enhancement
 
-3. **Collaboration Features**
-   - Share code explanations
-   - Team-wide code standards
-   - Code review automation
+3. Collaboration Features
+   - Team sharing
+   - Code standards
+   - Review automation
+
+4. AI Improvements
+   - Model optimization
+   - Context enhancement
+   - Response accuracy
 
 ## Development Guidelines
 
-1. **Code Organization**
-   - Clear separation of concerns
-   - Modular architecture
-   - Extensive documentation
+1. Code Organization
+   - Clear separation
+   - Modular design
+   - Documentation
 
-2. **Testing Strategy**
-   - Unit tests for core functionality
-   - Integration tests for AI services
-   - End-to-end extension tests
+2. Contribution Process
+   - Feature proposals
+   - Code reviews
+   - Testing requirements
 
-3. **Performance Considerations**
-   - Efficient code analysis
-   - Caching mechanisms
-   - Asynchronous operations
-
-4. **Security Measures**
-   - Secure API communication
-   - Code scanning
-   - Data privacy
+3. Release Management
+   - Version control
+   - Change tracking
+   - Update distribution
