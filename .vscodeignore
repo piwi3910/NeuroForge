@@ -1,6 +1,5 @@
 .vscode/**
 .vscode-test/**
-out/test/**
 src/**
 .gitignore
 .yarnrc
@@ -9,8 +8,6 @@ vsc-extension-quickstart.md
 **/.eslintrc.json
 **/*.map
 **/*.ts
-.husky/**
-.prettierrc
-.prettierignore
-ARCHITECTURE.md
-CHANGELOG.md
+!out/**/*.js
+!out/**/*.js.map
+!media/**/*
