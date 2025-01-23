@@ -6,7 +6,9 @@ import { DependencyTreeProvider } from '../views/dependencyTreeProvider';
 interface DependencyDetails {
   name: string;
   version: string;
-  description: string;
+  description?: string;
+  dependencies?: { [key: string]: string };
+  devDependencies?: { [key: string]: string };
 }
 
 export async function analyzeDependencies(_context: vscode.ExtensionContext): Promise<void> {
@@ -27,6 +29,11 @@ export async function analyzeDependencies(_context: vscode.ExtensionContext): Pr
     async (dependency: string) => {
       try {
         const details = await analyzer.getDependencyDetails(dependency);
+        if (!details) {
+          void vscode.window.showErrorMessage(`No details found for ${dependency}`);
+          return;
+        }
+
         const panel = vscode.window.createWebviewPanel(
           'dependencyDetails',
           `Dependency: ${dependency}`,
@@ -83,8 +90,40 @@ function getDetailsWebviewContent(details: DependencyDetails): string {
         <h2>${details.name} v${details.version}</h2>
         <div class="detail-item">
           <div class="detail-label">Description</div>
-          <div class="detail-value">${details.description}</div>
+          <div class="detail-value">${details.description || 'No description available'}</div>
         </div>
+        ${
+          details.dependencies
+            ? `
+        <div class="detail-item">
+          <div class="detail-label">Dependencies</div>
+          <div class="detail-value">
+            <ul>
+              ${Object.entries(details.dependencies)
+                .map(([name, version]) => `<li>${name}: ${version}</li>`)
+                .join('\n')}
+            </ul>
+          </div>
+        </div>
+        `
+            : ''
+        }
+        ${
+          details.devDependencies
+            ? `
+        <div class="detail-item">
+          <div class="detail-label">Dev Dependencies</div>
+          <div class="detail-value">
+            <ul>
+              ${Object.entries(details.devDependencies)
+                .map(([name, version]) => `<li>${name}: ${version}</li>`)
+                .join('\n')}
+            </ul>
+          </div>
+        </div>
+        `
+            : ''
+        }
       </div>
     </body>
     </html>

@@ -25,6 +25,40 @@ export class LanguageService {
     return this.supportedLanguages;
   }
 
+  public getLanguageId(code: string): string {
+    // Simple language detection based on common patterns
+    if (code.includes('import React') || code.includes('export default')) {
+      return 'javascript';
+    }
+    if (code.includes('interface ') || code.includes('type ')) {
+      return 'typescript';
+    }
+    if (code.includes('def ') || (code.includes('import ') && code.includes(':'))) {
+      return 'python';
+    }
+    if (code.includes('public class ') || code.includes('private void ')) {
+      return 'java';
+    }
+    if (code.includes('using System;') || code.includes('namespace ')) {
+      return 'csharp';
+    }
+    if (code.includes('#include <') || code.includes('std::')) {
+      return 'cpp';
+    }
+    if (code.includes('package main') || code.includes('func ')) {
+      return 'go';
+    }
+    if (code.includes('fn ') || code.includes('impl ')) {
+      return 'rust';
+    }
+    if (code.includes('<?php') || code.includes('namespace ')) {
+      return 'php';
+    }
+
+    // Default to javascript if no pattern matches
+    return 'javascript';
+  }
+
   public async formatCode(code: string, language: string): Promise<string> {
     try {
       // Get document formatting options from VSCode settings
@@ -110,39 +144,5 @@ export class LanguageService {
     };
 
     return extensionMap[language] || language;
-  }
-
-  public detectLanguage(code: string): string {
-    // Simple language detection based on common patterns
-    if (code.includes('import React') || code.includes('export default')) {
-      return 'javascript';
-    }
-    if (code.includes('interface ') || code.includes('type ')) {
-      return 'typescript';
-    }
-    if (code.includes('def ') || (code.includes('import ') && code.includes(':'))) {
-      return 'python';
-    }
-    if (code.includes('public class ') || code.includes('private void ')) {
-      return 'java';
-    }
-    if (code.includes('using System;') || code.includes('namespace ')) {
-      return 'csharp';
-    }
-    if (code.includes('#include <') || code.includes('std::')) {
-      return 'cpp';
-    }
-    if (code.includes('package main') || code.includes('func ')) {
-      return 'go';
-    }
-    if (code.includes('fn ') || code.includes('impl ')) {
-      return 'rust';
-    }
-    if (code.includes('<?php') || code.includes('namespace ')) {
-      return 'php';
-    }
-
-    // Default to javascript if no pattern matches
-    return 'javascript';
   }
 }
