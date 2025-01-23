@@ -2,8 +2,10 @@ import * as vscode from 'vscode';
 import { ConfigurationService } from './services/configurationService';
 import { ChatViewProvider } from './views/chatViewProvider';
 
-// Adding an unformatted line to test prettier
-const test = 'unformatted';
+// Adding multiple unformatted lines to test prettier
+const test1 = 'unformatted';
+const test2 = 'also unformatted';
+const test3 = 'unformatted too';
 
 export function activate(context: vscode.ExtensionContext) {
   // Initialize configuration service
