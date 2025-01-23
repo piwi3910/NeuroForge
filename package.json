@@ -1,0 +1,107 @@
+{
+  "name": "neuroforge",
+  "displayName": "NeuroForge",
+  "description": "AI-powered coding assistant for VS Code",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.96.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Machine Learning",
+    "Snippets",
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "neuroforge.explainCode",
+        "title": "NeuroForge: Explain Code",
+        "category": "NeuroForge",
+        "icon": "$(symbol-keyword)"
+      }
+    ],
+    "configuration": {
+      "title": "NeuroForge",
+      "properties": {
+        "neuroforge.aiModel": {
+          "type": "string",
+          "default": "default",
+          "description": "AI model to use for code analysis and generation"
+        },
+        "neuroforge.maxTokens": {
+          "type": "number",
+          "default": 1000,
+          "description": "Maximum number of tokens to use in AI requests"
+        },
+        "neuroforge.language": {
+          "type": "string",
+          "default": "auto",
+          "description": "Primary programming language for code analysis"
+        },
+        "neuroforge.autoSuggest": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable/disable automatic code suggestions"
+        }
+      }
+    },
+    "menus": {
+      "editor/context": [
+        {
+          "command": "neuroforge.explainCode",
+          "when": "editorHasSelection",
+          "group": "NeuroForge@1"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "neuroforge.explainCode",
+        "key": "ctrl+shift+e",
+        "mac": "cmd+shift+e",
+        "when": "editorTextFocus"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.96.0",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "20.x",
+    "@typescript-eslint/eslint-plugin": "^8.17.0",
+    "@typescript-eslint/parser": "^8.17.0",
+    "eslint": "^9.16.0",
+    "typescript": "^5.7.2",
+    "@vscode/test-cli": "^0.0.10",
+    "@vscode/test-electron": "^2.4.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/neuroforge.git"
+  },
+  "keywords": [
+    "ai",
+    "code-analysis",
+    "documentation",
+    "productivity",
+    "code-generation"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/yourusername/neuroforge/issues"
+  },
+  "homepage": "https://github.com/yourusername/neuroforge#readme"
+}
