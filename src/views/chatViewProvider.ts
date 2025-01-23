@@ -91,7 +91,18 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
               }
 
               // Process the message using AIService
-              const aiResponse = await this.aiService.chat(message.value);
+              const aiResponse = await this.aiService.chat([
+                {
+                  role: 'system',
+                  content:
+                    'You are NeuroForge, an AI coding assistant. Help the user with their programming tasks.',
+                },
+                {
+                  role: 'user',
+                  content: message.value,
+                },
+              ]);
+
               void webview.postMessage({
                 type: 'assistant',
                 value: aiResponse,

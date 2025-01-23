@@ -1,145 +1,165 @@
 import * as vscode from 'vscode';
 
-interface AIResponse {
-  toString(): string;
-}
+import { getLLMProviderRegistry } from './llm/providerRegistry';
+import { LLMRequest } from './llm/types';
 
 export class AIService {
-  private readonly apiKey: string;
-  private readonly provider: string;
   private readonly outputChannel: vscode.OutputChannel;
 
   constructor() {
-    const config = vscode.workspace.getConfiguration('neuroforge');
-    this.apiKey = config.get<string>('apiKey') || '';
-    this.provider = config.get<string>('provider') || 'anthropic';
     this.outputChannel = vscode.window.createOutputChannel('NeuroForge AI');
   }
 
-  private validateConfig(): void {
-    if (!this.apiKey) {
-      throw new Error('API key not configured. Please set neuroforge.apiKey in settings.');
-    }
-
-    const validProviders = ['anthropic', 'openai'];
-    if (!validProviders.includes(this.provider)) {
-      throw new Error(
-        `Invalid provider: ${this.provider}. Must be one of: ${validProviders.join(', ')}`
-      );
-    }
-  }
-
-  private async makeRequest<T>(_endpoint: string, _data: unknown): Promise<T> {
-    this.validateConfig();
-
+  public async initialize(): Promise<void> {
     try {
-      // TODO: Implement actual API request
+      const registry = getLLMProviderRegistry();
+      const config = vscode.workspace.getConfiguration('neuroforge');
+      const providerId = config.get<string>('provider') || registry.getDefaultProvider();
+
+      await registry.initializeProvider(providerId);
+      this.outputChannel.appendLine(`Initialized AI service with provider: ${providerId}`);
+    } catch (error) {
       this.outputChannel.appendLine(
-        `Making request to ${_endpoint} with data: ${JSON.stringify(_data)}`
+        `Error initializing AI service: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
-      console.warn('Using mock response - API integration not implemented yet');
-      return {
-        toString: () => 'Mock response - API integration not implemented yet',
-      } as T;
-    } catch (error) {
-      this.outputChannel.appendLine(`API request failed: ${error}`);
-      throw new Error(`API request failed: ${error}`);
+      throw error;
     }
   }
 
-  public async chat(message: string): Promise<string> {
+  public async chat(
+    messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>
+  ): Promise<string> {
     try {
-      this.outputChannel.appendLine(`Processing chat message: ${message}`);
-      const _response = await this.makeRequest<AIResponse>('/chat', {
-        message,
-        provider: this.provider,
-        maxTokens: vscode.workspace.getConfiguration('neuroforge').get('maxTokens'),
-        temperature: vscode.workspace.getConfiguration('neuroforge').get('temperature'),
-      });
+      const registry = getLLMProviderRegistry();
+      const config = vscode.workspace.getConfiguration('neuroforge');
+      const providerId = config.get<string>('provider') || registry.getDefaultProvider();
+      const provider = registry.getProvider(providerId);
 
-      // For now, return a mock response based on the message
-      if (message.toLowerCase().includes('hello') || message.toLowerCase().includes('hi')) {
-        return "Hello! I'm NeuroForge, your AI coding assistant. How can I help you today?";
-      } else if (message.toLowerCase().includes('help')) {
-        return "I can help you with various coding tasks such as:\n- Explaining code\n- Generating documentation\n- Suggesting refactoring\n- Generating tests\n- Converting code between languages\n\nJust let me know what you'd like to do!";
-      } else {
-        return `I understand you want to "${message}". I'm currently in development, but once fully implemented, I'll be able to help you with this request. For now, you can try commands like "help" to see what I can do.`;
-      }
+      // Get provider-specific settings
+      const providerConfig = registry.getProviderSettings(providerId);
+      const model =
+        providerConfig.get<string>('model') ||
+        (provider.settings.find(s => s.key === 'model')?.default as string);
+      const maxTokens =
+        providerConfig.get<number>('maxTokens') ||
+        (provider.settings.find(s => s.key === 'maxTokens')?.default as number);
+      const temperature =
+        providerConfig.get<number>('temperature') ||
+        (provider.settings.find(s => s.key === 'temperature')?.default as number);
+
+      const request: LLMRequest = {
+        messages,
+        model,
+        maxTokens,
+        temperature,
+      };
+
+      const response = await provider.generateResponse(request);
+      return response.content;
     } catch (error) {
-      this.outputChannel.appendLine(`Chat error: ${error}`);
-      throw new Error(`Failed to process chat message: ${error}`);
+      this.outputChannel.appendLine(
+        `Error in chat: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+      throw error;
     }
   }
 
-  public async explainCode(code: string): Promise<AIResponse> {
-    try {
-      const response = await this.makeRequest<AIResponse>('/explain', { code });
-      return response;
-    } catch (error) {
-      throw new Error(`Failed to explain code: ${error}`);
-    }
+  public async explainCode(code: string): Promise<string> {
+    const systemPrompt =
+      'You are an expert software developer. Explain the following code in a clear and concise way:';
+    return this.chat([
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: code },
+    ]);
   }
 
-  public async generateDocs(code: string): Promise<AIResponse> {
-    try {
-      const response = await this.makeRequest<AIResponse>('/docs', { code });
-      return response;
-    } catch (error) {
-      throw new Error(`Failed to generate documentation: ${error}`);
-    }
+  public async generateDocs(code: string): Promise<string> {
+    const systemPrompt =
+      'You are an expert software developer. Generate comprehensive documentation for the following code:';
+    return this.chat([
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: code },
+    ]);
   }
 
-  public async suggestRefactoring(code: string): Promise<AIResponse> {
-    try {
-      const response = await this.makeRequest<AIResponse>('/refactor', { code });
-      return response;
-    } catch (error) {
-      throw new Error(`Failed to suggest refactoring: ${error}`);
-    }
+  public async suggestRefactoring(code: string): Promise<string> {
+    const systemPrompt =
+      'You are an expert software developer. Suggest improvements and refactoring for the following code:';
+    return this.chat([
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: code },
+    ]);
   }
 
-  public async generateTests(code: string): Promise<AIResponse> {
-    try {
-      const response = await this.makeRequest<AIResponse>('/tests', { code });
-      return response;
-    } catch (error) {
-      throw new Error(`Failed to generate tests: ${error}`);
-    }
+  public async generateTests(code: string): Promise<string> {
+    const systemPrompt =
+      'You are an expert software developer. Generate comprehensive test cases for the following code:';
+    return this.chat([
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: code },
+    ]);
   }
 
-  public async analyzeDependencies(dependencies: string[]): Promise<AIResponse> {
-    try {
-      const response = await this.makeRequest<AIResponse>('/analyze', { dependencies });
-      return response;
-    } catch (error) {
-      throw new Error(`Failed to analyze dependencies: ${error}`);
-    }
+  public async analyzeDependencies(dependencies: string[]): Promise<string> {
+    const systemPrompt =
+      'You are an expert software developer. Analyze the following project dependencies and provide insights:';
+    return this.chat([
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: JSON.stringify(dependencies, null, 2) },
+    ]);
   }
 
-  public async getCompletionSuggestions(prefix: string): Promise<AIResponse> {
-    try {
-      const response = await this.makeRequest<AIResponse>('/complete', { prefix });
-      return response;
-    } catch (error) {
-      throw new Error(`Failed to get completion suggestions: ${error}`);
-    }
+  public async getCompletionSuggestions(prefix: string): Promise<string> {
+    const systemPrompt =
+      'You are an expert software developer. Provide code completion suggestions for the following context:';
+    return this.chat([
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: prefix },
+    ]);
   }
 
-  public async reviewCode(code: string): Promise<AIResponse> {
-    try {
-      const response = await this.makeRequest<AIResponse>('/review', { code });
-      return response;
-    } catch (error) {
-      throw new Error(`Failed to review code: ${error}`);
-    }
+  public async reviewCode(code: string): Promise<string> {
+    const systemPrompt =
+      'You are an expert software developer. Review the following code and provide feedback:';
+    return this.chat([
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: code },
+    ]);
   }
 
-  public async convertCode(code: string, targetLanguage: string): Promise<AIResponse> {
-    try {
-      const response = await this.makeRequest<AIResponse>('/convert', { code, targetLanguage });
-      return response;
-    } catch (error) {
-      throw new Error(`Failed to convert code: ${error}`);
-    }
+  public async convertCode(code: string, targetLanguage: string): Promise<string> {
+    const systemPrompt = `You are an expert software developer. Convert the following code to ${targetLanguage}:`;
+    return this.chat([
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: code },
+    ]);
+  }
+
+  public async getAvailableProviders(): Promise<
+    Array<{ id: string; name: string; description: string }>
+  > {
+    const registry = getLLMProviderRegistry();
+    return registry.getAllProviders().map(provider => ({
+      id: provider.id,
+      name: provider.name,
+      description: provider.description,
+    }));
+  }
+
+  public async getProviderModels(
+    providerId: string
+  ): Promise<Array<{ label: string; value: string; description: string }>> {
+    const registry = getLLMProviderRegistry();
+    return registry.getAvailableModels(providerId);
+  }
+
+  public async validateProviderConfig(providerId: string): Promise<string[]> {
+    const registry = getLLMProviderRegistry();
+    return registry.validateProviderConfig(providerId);
+  }
+
+  public getProviderSettings(providerId: string): vscode.WorkspaceConfiguration {
+    const registry = getLLMProviderRegistry();
+    return registry.getProviderSettings(providerId);
   }
 }

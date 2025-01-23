@@ -1,41 +1,54 @@
 import * as vscode from 'vscode';
 
+import { AIService } from '../services/aiService';
 import { ConfigurationService } from '../services/configurationService';
+import { getLLMProviderRegistry } from '../services/llm/providerRegistry';
 
 interface SettingsMessage {
-  type: 'saveSettings' | 'backToChat';
+  type: 'saveSettings' | 'backToChat' | 'providerChanged';
   value?: {
     provider: string;
-    apiKey: string;
-    maxTokens: number;
-    temperature: number;
+    [key: string]: unknown;
   };
 }
 
 export class SettingsViewProvider implements vscode.WebviewViewProvider {
   private readonly configService: ConfigurationService;
+  private readonly aiService: AIService;
 
   constructor(private readonly extensionUri: vscode.Uri) {
     this.configService = new ConfigurationService();
+    this.aiService = new AIService();
   }
 
-  public resolveWebviewView(
+  public async resolveWebviewView(
     webviewView: vscode.WebviewView,
     _context: vscode.WebviewViewResolveContext,
     _token: vscode.CancellationToken
-  ): void {
+  ): Promise<void> {
     webviewView.webview.options = {
       enableScripts: true,
       localResourceRoots: [this.extensionUri],
     };
 
-    webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
+    webviewView.webview.html = await this._getHtmlForWebview(webviewView.webview);
     this._setWebviewMessageListener(webviewView.webview);
   }
 
-  private _getHtmlForWebview(webview: vscode.Webview): string {
+  private async _getHtmlForWebview(webview: vscode.Webview): Promise<string> {
     const nonce = this._getNonce();
+    const registry = getLLMProviderRegistry();
+    const providers = await this.aiService.getAvailableProviders();
     const config = vscode.workspace.getConfiguration('neuroforge');
+    const selectedProviderId = config.get<string>('provider') || registry.getDefaultProvider();
+
+    // Get provider-specific settings
+    const provider = registry.getProvider(selectedProviderId);
+    const providerConfig = registry.getProviderSettings(selectedProviderId);
+
+    // Note: Models are fetched but not used in the current implementation
+    // They will be used in a future update for model-specific features
+    await registry.getAvailableModels(selectedProviderId);
 
     return `<!DOCTYPE html>
       <html lang="en">
@@ -73,6 +86,7 @@ export class SettingsViewProvider implements vscode.WebviewViewProvider {
               padding: 8px 12px;
               cursor: pointer;
               border-radius: 2px;
+              margin-right: 8px;
             }
             button:hover {
               background: var(--vscode-button-hoverBackground);
@@ -81,24 +95,77 @@ export class SettingsViewProvider implements vscode.WebviewViewProvider {
               color: var(--vscode-errorForeground);
               margin-top: 5px;
             }
+            .description {
+              font-size: 0.9em;
+              color: var(--vscode-descriptionForeground);
+              margin-bottom: 5px;
+            }
           </style>
         </head>
         <body>
           <div class="setting-group">
             <label class="setting-label" for="provider">AI Provider</label>
+            <div class="description">Select the AI provider to use</div>
             <select id="provider">
-              <option value="anthropic" ${config.get('provider') === 'anthropic' ? 'selected' : ''}>Anthropic</option>
-              <option value="openai" ${config.get('provider') === 'openai' ? 'selected' : ''}>OpenAI</option>
+              ${providers
+                .map(
+                  p => `
+                <option value="${p.id}" ${p.id === selectedProviderId ? 'selected' : ''}>
+                  ${p.name}
+                </option>
+              `
+                )
+                .join('')}
             </select>
 
-            <label class="setting-label" for="apiKey">API Key</label>
-            <input type="password" id="apiKey" value="${config.get('apiKey') || ''}" />
-
-            <label class="setting-label" for="maxTokens">Max Tokens</label>
-            <input type="number" id="maxTokens" value="${config.get('maxTokens') || 8192}" min="1" max="32000" />
-
-            <label class="setting-label" for="temperature">Temperature</label>
-            <input type="number" id="temperature" value="${config.get('temperature') || 0.7}" min="0" max="1" step="0.1" />
+            ${provider.settings
+              .map(
+                setting => `
+              <div class="setting-group">
+                <label class="setting-label" for="${setting.key}">${setting.label}</label>
+                <div class="description">${setting.description}</div>
+                ${
+                  setting.type === 'select'
+                    ? `
+                  <select id="${setting.key}" ${setting.required ? 'required' : ''}>
+                    ${setting.options
+                      ?.map(
+                        opt => `
+                      <option value="${opt.value}" ${providerConfig.get(setting.key) === opt.value ? 'selected' : ''}>
+                        ${opt.label}
+                      </option>
+                    `
+                      )
+                      .join('')}
+                  </select>
+                `
+                    : setting.type === 'password'
+                      ? `
+                  <input type="password" id="${setting.key}" 
+                    value="${providerConfig.get(setting.key) || ''}"
+                    ${setting.required ? 'required' : ''}
+                  />
+                `
+                      : setting.type === 'number'
+                        ? `
+                  <input type="number" id="${setting.key}"
+                    value="${providerConfig.get(setting.key) || setting.default || ''}"
+                    ${setting.validation?.min !== undefined ? `min="${setting.validation.min}"` : ''}
+                    ${setting.validation?.max !== undefined ? `max="${setting.validation.max}"` : ''}
+                    ${setting.required ? 'required' : ''}
+                  />
+                `
+                        : `
+                  <input type="text" id="${setting.key}"
+                    value="${providerConfig.get(setting.key) || setting.default || ''}"
+                    ${setting.required ? 'required' : ''}
+                  />
+                `
+                }
+              </div>
+            `
+              )
+              .join('')}
 
             <button id="saveButton">Save Settings</button>
             <button id="backButton">Back to Chat</button>
@@ -108,21 +175,42 @@ export class SettingsViewProvider implements vscode.WebviewViewProvider {
           <script nonce="${nonce}">
             const vscode = acquireVsCodeApi();
             
+            // Handle provider change
+            document.getElementById('provider').addEventListener('change', (e) => {
+              vscode.postMessage({
+                type: 'providerChanged',
+                value: { provider: e.target.value }
+              });
+            });
+
+            // Handle save
             document.getElementById('saveButton').addEventListener('click', () => {
               const settings = {
                 provider: document.getElementById('provider').value,
-                apiKey: document.getElementById('apiKey').value,
-                maxTokens: parseInt(document.getElementById('maxTokens').value),
-                temperature: parseFloat(document.getElementById('temperature').value)
               };
 
-              vscode.postMessage({ type: 'saveSettings', value: settings });
+              // Add provider-specific settings
+              ${provider.settings
+                .map(
+                  setting => `
+                settings['${setting.key}'] = document.getElementById('${setting.key}').value;
+                ${setting.type === 'number' ? `settings['${setting.key}'] = Number(settings['${setting.key}']);` : ''}
+              `
+                )
+                .join('')}
+
+              vscode.postMessage({
+                type: 'saveSettings',
+                value: settings
+              });
             });
 
+            // Handle back button
             document.getElementById('backButton').addEventListener('click', () => {
               vscode.postMessage({ type: 'backToChat' });
             });
 
+            // Handle error messages
             window.addEventListener('message', event => {
               const message = event.data;
               if (message.type === 'error') {
@@ -141,13 +229,38 @@ export class SettingsViewProvider implements vscode.WebviewViewProvider {
           case 'saveSettings':
             try {
               if (message.value) {
-                const settings = message.value;
-                await this.configService.updateSetting('provider', settings.provider);
-                await this.configService.updateSetting('apiKey', settings.apiKey);
-                await this.configService.updateSetting('maxTokens', settings.maxTokens);
-                await this.configService.updateSetting('temperature', settings.temperature);
+                const { provider, ...settings } = message.value;
 
-                // Switch back to chat view after saving
+                // Update global provider setting
+                await this.configService.updateSetting('provider', provider);
+
+                // Update provider-specific settings
+                const registry = getLLMProviderRegistry();
+                const providerInstance = registry.getProvider(provider);
+
+                for (const setting of providerInstance.settings) {
+                  const value = settings[setting.key];
+                  if (value !== undefined) {
+                    await this.configService.updateSetting(
+                      setting.key,
+                      value,
+                      vscode.ConfigurationTarget.Global,
+                      provider
+                    );
+                  }
+                }
+
+                // Validate the new configuration
+                const errors = await registry.validateProviderConfig(provider);
+                if (errors.length > 0) {
+                  void webview.postMessage({
+                    type: 'error',
+                    value: `Configuration errors:\n${errors.join('\n')}`,
+                  });
+                  return;
+                }
+
+                // Switch back to chat view
                 await vscode.commands.executeCommand('neuroforge.backToChat');
               }
             } catch (error) {
@@ -155,6 +268,13 @@ export class SettingsViewProvider implements vscode.WebviewViewProvider {
                 type: 'error',
                 value: `Failed to save settings: ${error instanceof Error ? error.message : 'Unknown error'}`,
               });
+            }
+            break;
+
+          case 'providerChanged':
+            if (message.value?.provider) {
+              // Reload the webview with the new provider's settings
+              webview.html = await this._getHtmlForWebview(webview);
             }
             break;
 
