@@ -6,7 +6,7 @@ import { LanguageService } from './languageService';
 export class CompletionProvider implements vscode.CompletionItemProvider {
   constructor(
     private readonly aiService: AIService,
-    private readonly languageService: LanguageService
+    private readonly _languageService: LanguageService
   ) {}
 
   async provideCompletionItems(
