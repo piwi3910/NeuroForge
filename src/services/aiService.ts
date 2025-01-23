@@ -92,6 +92,28 @@ export class AIService {
     }
 
     /**
+     * Generates code completion suggestions
+     * @param prefix Current line prefix
+     * @param context Code context
+     * @returns Array of completion suggestions
+     */
+    public async generateCompletions(prefix: string, context: any): Promise<string[]> {
+        // TODO: Implement actual AI-powered completions
+        const suggestions = [
+            'console.log("Hello, World!");',
+            'function example() {',
+            'if (condition) {',
+            'for (let i = 0; i < array.length; i++) {',
+            'return new Promise((resolve, reject) => {',
+            'try {',
+            'catch (error) {'
+        ];
+
+        // Filter suggestions based on prefix
+        return suggestions.filter(s => s.startsWith(prefix.trim()));
+    }
+
+    /**
      * Configures the AI service settings
      * @param settings Configuration settings to update
      */
