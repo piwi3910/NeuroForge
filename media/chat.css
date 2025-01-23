@@ -1,178 +1,162 @@
-:root {
-    --input-padding: 8px;
+body {
+    padding: 0;
+    margin: 0;
+    color: var(--vscode-foreground);
+    font-family: var(--vscode-font-family);
+    font-size: var(--vscode-font-size);
+    background-color: var(--vscode-editor-background);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
 }
 
-.chat-container {
+.settings-section {
+    padding: 10px;
+}
+
+.form-group {
+    margin-bottom: 10px;
+}
+
+label {
+    display: block;
+    font-size: 11px;
+    margin-bottom: 4px;
+    color: var(--vscode-foreground);
+    opacity: 0.9;
+}
+
+input, select {
+    width: 100%;
+    height: 24px;
+    padding: 2px 6px;
+    box-sizing: border-box;
+    background: var(--vscode-input-background);
+    color: var(--vscode-input-foreground);
+    border: 1px solid var(--vscode-input-border);
+    border-radius: 2px;
+    font-family: var(--vscode-font-family);
+    font-size: var(--vscode-font-size);
+}
+
+input:focus, select:focus {
+    outline: 1px solid var(--vscode-focusBorder);
+    outline-offset: -1px;
+}
+
+button {
+    width: 100%;
+    height: 24px;
+    background: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
+    border: none;
+    border-radius: 2px;
+    padding: 2px 14px;
+    cursor: pointer;
+    font-family: var(--vscode-font-family);
+    font-size: var(--vscode-font-size);
+}
+
+button:hover {
+    background: var(--vscode-button-hoverBackground);
+}
+
+.chat-section {
     display: flex;
     flex-direction: column;
     height: 100vh;
-    background-color: var(--vscode-editor-background);
-    color: var(--vscode-editor-foreground);
 }
 
-.chat-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px;
-    background-color: var(--vscode-editor-background);
-    border-bottom: 1px solid var(--vscode-panel-border);
-}
-
-.title {
-    font-weight: bold;
-    font-size: 14px;
-}
-
-.settings-button {
-    background: none;
-    border: none;
-    color: var(--vscode-button-foreground);
-    cursor: pointer;
-    padding: 4px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.settings-button:hover {
-    background-color: var(--vscode-button-hoverBackground);
-    border-radius: 4px;
-}
-
-.messages {
+#chat-messages {
     flex-grow: 1;
     overflow-y: auto;
-    padding: 16px;
+    padding: 10px;
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 8px;
 }
 
 .message {
-    display: flex;
-    flex-direction: column;
+    padding: 6px 10px;
+    border-radius: 4px;
     max-width: 85%;
+    font-size: var(--vscode-font-size);
+    line-height: 1.4;
 }
 
 .message.user {
+    background: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
     align-self: flex-end;
 }
 
 .message.assistant {
+    background: var(--vscode-editor-inactiveSelectionBackground);
+    color: var(--vscode-editor-foreground);
     align-self: flex-start;
 }
 
-.message-content {
-    padding: 8px 12px;
-    border-radius: 8px;
-    word-wrap: break-word;
-}
-
-.message.user .message-content {
-    background-color: var(--vscode-button-background);
-    color: var(--vscode-button-foreground);
-}
-
-.message.assistant .message-content {
-    background-color: var(--vscode-editor-selectionBackground);
-    color: var(--vscode-editor-selectionForeground);
-}
-
-.message-timestamp {
-    font-size: 10px;
-    color: var(--vscode-descriptionForeground);
-    margin-top: 4px;
-    align-self: flex-end;
-}
-
-.typing-indicator {
+.chat-input-container {
+    padding: 10px;
+    background: var(--vscode-sideBar-background);
+    border-top: 1px solid var(--vscode-sideBar-border);
     display: flex;
-    gap: 4px;
-    padding: 8px 12px;
-    margin: 0 16px;
+    gap: 6px;
 }
 
-.typing-indicator.hidden {
-    display: none;
-}
-
-.typing-indicator span {
-    width: 8px;
-    height: 8px;
-    background-color: var(--vscode-button-background);
-    border-radius: 50%;
-    animation: typing 1s infinite ease-in-out;
-}
-
-.typing-indicator span:nth-child(2) {
-    animation-delay: 0.2s;
-}
-
-.typing-indicator span:nth-child(3) {
-    animation-delay: 0.4s;
-}
-
-@keyframes typing {
-    0%, 100% {
-        transform: translateY(0);
-    }
-    50% {
-        transform: translateY(-4px);
-    }
-}
-
-.input-container {
-    display: flex;
-    gap: 8px;
-    padding: 16px;
-    background-color: var(--vscode-editor-background);
-    border-top: 1px solid var(--vscode-panel-border);
-}
-
-textarea {
+#chat-input {
     flex-grow: 1;
-    background-color: var(--vscode-input-background);
+    resize: none;
+    min-height: 24px;
+    max-height: 150px;
+    padding: 4px 6px;
+    background: var(--vscode-input-background);
     color: var(--vscode-input-foreground);
     border: 1px solid var(--vscode-input-border);
-    border-radius: 4px;
-    padding: var(--input-padding);
-    resize: none;
+    border-radius: 2px;
     font-family: var(--vscode-font-family);
     font-size: var(--vscode-font-size);
-    line-height: 1.4;
-    min-height: 20px;
-    max-height: 120px;
+    line-height: 16px;
 }
 
-textarea:focus {
-    outline: none;
-    border-color: var(--vscode-focusBorder);
+#chat-input:focus {
+    outline: 1px solid var(--vscode-focusBorder);
+    outline-offset: -1px;
 }
 
-#sendButton {
-    background-color: var(--vscode-button-background);
-    color: var(--vscode-button-foreground);
-    border: none;
-    border-radius: 4px;
-    padding: 6px 12px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+.send-button {
+    width: auto;
+    align-self: flex-end;
+    padding: 2px 10px;
+    white-space: nowrap;
 }
 
-#sendButton:hover {
-    background-color: var(--vscode-button-hoverBackground);
+.error {
+    color: var(--vscode-errorForeground);
+    font-size: 11px;
+    margin-top: 4px;
 }
 
-#sendButton:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
+.success {
+    color: var(--vscode-notificationsInfoIcon-foreground);
+    font-size: 11px;
+    margin-top: 4px;
 }
 
-.codicon {
-    font-family: codicon;
-    font-size: 16px;
-    line-height: 1;
+/* Scrollbar styling */
+::-webkit-scrollbar {
+    width: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--vscode-scrollbarSlider-background);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--vscode-scrollbarSlider-hoverBackground);
+    border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--vscode-scrollbarSlider-activeBackground);
 }

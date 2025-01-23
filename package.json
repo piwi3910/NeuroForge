@@ -32,15 +32,7 @@
         {
           "type": "webview",
           "id": "neuroforge.chatView",
-          "name": "Chat",
-          "icon": "$(comment-discussion)",
-          "contextualTitle": "AI Assistant"
-        },
-        {
-          "id": "neuroForgeDependencies",
-          "name": "Dependencies",
-          "icon": "$(references)",
-          "contextualTitle": "Project Dependencies"
+          "name": "NeuroForge"
         }
       ]
     },
@@ -82,18 +74,8 @@
         "icon": "$(references)"
       },
       {
-        "command": "neuroforge.openDependencyFile",
-        "title": "Open File",
-        "icon": "$(go-to-file)"
-      },
-      {
-        "command": "neuroforge.showDependencyDetails",
-        "title": "Show Details",
-        "icon": "$(info)"
-      },
-      {
         "command": "neuroforge.openSettings",
-        "title": "NeuroForge: Open Settings",
+        "title": "NeuroForge: Settings",
         "category": "NeuroForge",
         "icon": "$(gear)"
       },
@@ -107,58 +89,15 @@
     "menus": {
       "view/title": [
         {
-          "command": "neuroforge.analyzeDependencies",
-          "when": "view == neuroForgeDependencies",
-          "group": "navigation"
-        },
-        {
           "command": "neuroforge.openSettings",
           "when": "view == neuroforge.chatView",
           "group": "navigation"
-        }
-      ],
-      "view/item/context": [
-        {
-          "command": "neuroforge.openDependencyFile",
-          "when": "view == neuroForgeDependencies && viewItem == file",
-          "group": "inline"
-        },
-        {
-          "command": "neuroforge.showDependencyDetails",
-          "when": "view == neuroForgeDependencies && viewItem == file",
-          "group": "inline"
         }
       ],
       "editor/context": [
         {
           "submenu": "neuroforge.menu",
           "group": "navigation"
-        }
-      ],
-      "neuroforge.menu": [
-        {
-          "command": "neuroforge.explainCode",
-          "group": "1_analysis"
-        },
-        {
-          "command": "neuroforge.generateDocs",
-          "group": "1_analysis"
-        },
-        {
-          "command": "neuroforge.suggestRefactor",
-          "group": "2_modification"
-        },
-        {
-          "command": "neuroforge.generateTests",
-          "group": "2_modification"
-        },
-        {
-          "command": "neuroforge.convertCode",
-          "group": "2_modification"
-        },
-        {
-          "command": "neuroforge.analyzeDependencies",
-          "group": "3_analysis"
         }
       ]
     },
@@ -215,107 +154,27 @@
     "configuration": {
       "title": "NeuroForge",
       "properties": {
-        "neuroforge.aiModel": {
+        "neuroforge.provider": {
           "type": "string",
-          "default": "default",
-          "description": "AI model to use for code analysis and generation",
-          "enum": ["default", "fast", "accurate"],
-          "enumDescriptions": [
-            "Balanced performance and accuracy",
-            "Faster response times with reduced accuracy",
-            "Higher accuracy with longer processing times"
-          ]
+          "default": "anthropic",
+          "enum": ["anthropic", "openai"],
+          "description": "AI provider to use"
+        },
+        "neuroforge.apiKey": {
+          "type": "string",
+          "description": "API key for the selected provider"
         },
         "neuroforge.maxTokens": {
           "type": "number",
-          "default": 1000,
+          "default": 8192,
           "description": "Maximum number of tokens to use in AI requests"
         },
-        "neuroforge.language": {
-          "type": "string",
-          "default": "auto",
-          "description": "Primary programming language for code analysis"
-        },
-        "neuroforge.autoSuggest": {
-          "type": "boolean",
-          "default": true,
-          "description": "Enable/disable automatic code suggestions"
-        },
-        "neuroforge.documentationStyle": {
-          "type": "string",
-          "default": "standard",
-          "description": "Documentation style to use",
-          "enum": ["standard", "detailed", "minimal"],
-          "enumDescriptions": [
-            "Standard documentation with essential information",
-            "Detailed documentation with examples and edge cases",
-            "Minimal documentation with basic information only"
-          ]
-        },
-        "neuroforge.testFramework": {
-          "type": "object",
-          "description": "Test framework configurations",
-          "properties": {
-            "javascript": {
-              "type": "string",
-              "default": "jest",
-              "enum": ["jest", "mocha"]
-            },
-            "python": {
-              "type": "string",
-              "default": "pytest",
-              "enum": ["pytest", "unittest"]
-            },
-            "java": {
-              "type": "string",
-              "default": "junit",
-              "enum": ["junit", "testng"]
-            }
-          }
-        },
-        "neuroforge.codeConversion": {
-          "type": "object",
-          "description": "Code conversion preferences",
-          "properties": {
-            "preserveComments": {
-              "type": "boolean",
-              "default": true,
-              "description": "Preserve comments during code conversion"
-            },
-            "stylePreference": {
-              "type": "string",
-              "default": "modern",
-              "enum": ["modern", "classic"],
-              "description": "Code style preference for converted code"
-            }
-          }
-        },
-        "neuroforge.ai": {
-          "type": "object",
-          "description": "AI service configuration",
-          "properties": {
-            "provider": {
-              "type": "string",
-              "default": "openai",
-              "enum": ["openai", "anthropic", "local"],
-              "description": "AI provider to use"
-            },
-            "apiKey": {
-              "type": "string",
-              "description": "API key for the selected AI provider"
-            },
-            "model": {
-              "type": "string",
-              "description": "Specific model to use from the provider"
-            },
-            "temperature": {
-              "type": "number",
-              "default": 0.7,
-              "minimum": 0,
-              "maximum": 1,
-              "description": "Temperature for AI responses"
-            }
-          }
+        "neuroforge.temperature": {
+          "type": "number",
+          "default": 0.7,
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Temperature setting for AI responses"
         }
       }
     }
@@ -335,14 +194,13 @@
     "@typescript-eslint/eslint-plugin": "^8.17.0",
     "@typescript-eslint/parser": "^8.17.0",
     "eslint": "^9.16.0",
-    "mocha": "^10.8.0",
     "typescript": "^5.7.2",
     "@vscode/test-cli": "^0.0.10",
     "@vscode/test-electron": "^2.4.1"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/piwi3910/neuroforge.git"
+    "url": "https://github.com/yourusername/neuroforge.git"
   },
   "keywords": [
     "ai",
@@ -354,10 +212,10 @@
     "refactoring",
     "code-conversion"
   ],
-  "author": "Pascal Watteel",
+  "author": "Your Name",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/piwi3910/neuroforge/issues"
+    "url": "https://github.com/yourusername/neuroforge/issues"
   },
-  "homepage": "https://github.com/piwi3910/neuroforge#readme"
+  "homepage": "https://github.com/yourusername/neuroforge#readme"
 }
