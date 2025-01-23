@@ -1,44 +1,60 @@
-# Welcome to your VS Code Extension
+# Welcome to NeuroForge Development
 
 ## What's in the folder
 
-* This folder contains all of the files necessary for your extension.
-* `package.json` - this is the manifest file in which you declare your extension and command.
-  * The sample plugin registers a command and defines its title and command name. With this information VS Code can show the command in the command palette. It doesn’t yet need to load the plugin.
-* `src/extension.ts` - this is the main file where you will provide the implementation of your command.
-  * The file exports one function, `activate`, which is called the very first time your extension is activated (in this case by executing the command). Inside the `activate` function we call `registerCommand`.
-  * We pass the function containing the implementation of the command as the second parameter to `registerCommand`.
+- This folder contains all of the files necessary for your extension.
+- `package.json` - this is the manifest file in which you declare your extension and command registrations.
+- `src/extension.ts` - this is the main file where you will provide the implementation of your commands.
+- The `src` folder contains all the source files for the extension.
+- The `media` folder contains CSS and JavaScript files for the webview.
+- The `resources` folder contains static resources used by the extension.
 
 ## Get up and running straight away
 
-* Press `F5` to open a new window with your extension loaded.
-* Run your command from the command palette by pressing (`Ctrl+Shift+P` or `Cmd+Shift+P` on Mac) and typing `Hello World`.
-* Set breakpoints in your code inside `src/extension.ts` to debug your extension.
-* Find output from your extension in the debug console.
+- Press `F5` to open a new window with your extension loaded.
+- Open the Command Palette (Ctrl+Shift+P) and type 'NeuroForge' to see available commands.
+- Set breakpoints in your code inside `src/extension.ts` to debug your extension.
+- Find output from your extension in the debug console.
 
 ## Make changes
 
-* You can relaunch the extension from the debug toolbar after changing code in `src/extension.ts`.
-* You can also reload (`Ctrl+R` or `Cmd+R` on Mac) the VS Code window with your extension to load your changes.
+- You can relaunch the extension from the debug toolbar after changing code in `src/extension.ts`.
+- You can also reload (`Ctrl+R` or `Cmd+R` on Mac) the VS Code window with your extension to load your changes.
 
 ## Explore the API
 
-* You can open the full set of our API when you open the file `node_modules/@types/vscode/index.d.ts`.
+- You can open the full set of our API when you open the file `node_modules/@types/vscode/index.d.ts`.
 
 ## Run tests
 
-* Install the [Extension Test Runner](https://marketplace.visualstudio.com/items?itemName=ms-vscode.extension-test-runner)
-* Run the "watch" task via the **Tasks: Run Task** command. Make sure this is running, or tests might not be discovered.
-* Open the Testing view from the activity bar and click the Run Test" button, or use the hotkey `Ctrl/Cmd + ; A`
-* See the output of the test result in the Test Results view.
-* Make changes to `src/test/extension.test.ts` or create new test files inside the `test` folder.
-  * The provided test runner will only consider files matching the name pattern `**.test.ts`.
-  * You can create folders inside the `test` folder to structure your tests any way you want.
+- Open the debug viewlet (`Ctrl+Shift+D` or `Cmd+Shift+D` on Mac) and from the launch configuration dropdown pick `Extension Tests`.
+- Press `F5` to run the tests in a new window with your extension loaded.
+- See the output of the test result in the debug console.
+- Make changes to `src/test/suite/extension.test.ts` or create new test files inside the `test/suite` folder.
+  - The provided test runner will only consider files matching the name pattern `**.test.ts`.
+  - You can create folders inside the `test` folder to structure your tests any way you want.
 
 ## Go further
 
-* [Follow UX guidelines](https://code.visualstudio.com/api/ux-guidelines/overview) to create extensions that seamlessly integrate with VS Code's native interface and patterns.
-* Reduce the extension size and improve the startup time by [bundling your extension](https://code.visualstudio.com/api/working-with-extensions/bundling-extension).
-* [Publish your extension](https://code.visualstudio.com/api/working-with-extensions/publishing-extension) on the VS Code extension marketplace.
-* Automate builds by setting up [Continuous Integration](https://code.visualstudio.com/api/working-with-extensions/continuous-integration).
-* Integrate to the [report issue](https://code.visualstudio.com/api/get-started/wrapping-up#issue-reporting) flow to get issue and feature requests reported by users.
+- [Follow best practices for VS Code extension development](https://code.visualstudio.com/api/references/extension-guidelines)
+- [Publish your extension](https://code.visualstudio.com/api/working-with-extensions/publishing-extension)
+- [Set up continuous integration](https://code.visualstudio.com/api/working-with-extensions/continuous-integration)
+
+## Bundling your extension
+
+- To bundle your extension, install the recommended bundler: `npm install -g @vscode/vsce`
+- Package the extension: `vsce package`
+- The packaged extension will be created in the root directory with a `.vsix` extension.
+
+## Publishing your extension
+
+- Create a publisher on https://marketplace.visualstudio.com/manage
+- `vsce login <publisher>`
+- `vsce publish`
+
+## Working with Webview
+
+- The chat interface is implemented using VS Code's Webview API
+- Webview files are in the `media` folder
+- Use `asWebviewUri` to properly load resources in the webview
+- Follow VS Code's [Webview Security Best Practices](https://code.visualstudio.com/api/extension-guides/webview#security)

@@ -4,6 +4,13 @@
   "description": "AI-powered coding assistant for VS Code",
   "version": "0.0.1",
   "publisher": "neuroforge",
+  "private": true,
+  "license": "MIT",
+  "icon": "resources/icon.png",
+  "galleryBanner": {
+    "color": "#1e1e1e",
+    "theme": "dark"
+  },
   "engines": {
     "vscode": "^1.96.0"
   },
@@ -14,25 +21,26 @@
     "Other"
   ],
   "activationEvents": [
-    "*"
+    "onStartupFinished"
   ],
   "main": "./out/extension.js",
   "contributes": {
     "viewsContainers": {
       "panel": [
         {
-          "id": "neuroforge-explorer",
+          "id": "neuroforge-panel",
           "title": "NeuroForge",
           "icon": "$(symbol-misc)"
         }
       ]
     },
     "views": {
-      "neuroforge-explorer": [
+      "neuroforge-panel": [
         {
           "type": "webview",
           "id": "neuroforge.chatView",
-          "name": "NeuroForge Chat"
+          "name": "Chat",
+          "icon": "$(comment-discussion)"
         }
       ]
     },
@@ -185,7 +193,6 @@
     "code-conversion"
   ],
   "author": "Pascal Watteel",
-  "license": "MIT",
   "bugs": {
     "url": "https://github.com/piwi3910/NeuroForge/issues"
   },
