@@ -1,112 +1,81 @@
-// Get DOM elements
-const messagesContainer = document.getElementById('messages');
-const messageInput = document.getElementById('messageInput');
-const sendButton = document.getElementById('sendButton');
-const typingIndicator = document.getElementById('typing');
+// @ts-check
 
-// VSCode webview API
-const vscode = acquireVsCodeApi();
+(function () {
+  // @ts-ignore
+  const vscode = acquireVsCodeApi();
 
-// Initialize state
-let isTyping = false;
+  const userInput = /** @type {HTMLTextAreaElement} */ (document.getElementById('user-input'));
+  const sendButton = /** @type {HTMLButtonElement} */ (document.getElementById('send-button'));
+  const messagesContainer = /** @type {HTMLDivElement} */ (document.getElementById('messages'));
 
-// Auto-resize textarea
-messageInput.addEventListener('input', () => {
-    messageInput.style.height = 'auto';
-    messageInput.style.height = messageInput.scrollHeight + 'px';
-    updateSendButton();
-});
+  // Early return if required elements are not found
+  if (!userInput || !sendButton || !messagesContainer) {
+    console.error('Required DOM elements not found');
+    return;
+  }
 
-// Update send button state
-function updateSendButton() {
-    sendButton.disabled = !messageInput.value.trim();
-}
+  // Initialize message history
+  /** @type {Array<{sender: string, text: string}>} */
+  const messageHistory = [];
 
-// Format timestamp
-function formatTimestamp(timestamp) {
-    const date = new Date(timestamp);
-    return date.toLocaleTimeString(undefined, {
-        hour: '2-digit',
-        minute: '2-digit'
+  /**
+   * Send message to extension
+   */
+  function sendMessage() {
+    const text = userInput.value.trim();
+    if (!text) return;
+
+    // Add user message to UI
+    addMessageToUI('user', text);
+
+    // Send message to extension
+    vscode.postMessage({
+      type: 'userInput',
+      value: text,
     });
-}
-
-// Create message element
-function createMessageElement(message) {
-    const messageDiv = document.createElement('div');
-    messageDiv.className = `message ${message.role}`;
-
-    const content = document.createElement('div');
-    content.className = 'message-content';
-    content.textContent = message.content;
-    messageDiv.appendChild(content);
-
-    const timestamp = document.createElement('div');
-    timestamp.className = 'message-timestamp';
-    timestamp.textContent = formatTimestamp(message.timestamp);
-    messageDiv.appendChild(timestamp);
-
-    return messageDiv;
-}
-
-// Add message to chat
-function addMessage(message) {
-    const messageElement = createMessageElement(message);
-    messagesContainer.appendChild(messageElement);
-    messagesContainer.scrollTop = messagesContainer.scrollHeight;
-}
-
-// Send message
-function sendMessage() {
-    const content = messageInput.value.trim();
-    if (!content) return;
 
     // Clear input
-    messageInput.value = '';
-    messageInput.style.height = 'auto';
-    updateSendButton();
+    userInput.value = '';
+  }
 
-    // Send to extension
-    vscode.postMessage({
-        type: 'sendMessage',
-        message: content
-    });
-}
+  /**
+   * Add message to UI
+   * @param {string} sender - The sender of the message (user/assistant/error)
+   * @param {string} text - The message text
+   */
+  function addMessageToUI(sender, text) {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${sender}-message`;
+    messageDiv.textContent = text;
+    messagesContainer.appendChild(messageDiv);
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
-// Open settings
-function openSettings() {
-    vscode.postMessage({
-        type: 'openSettings'
-    });
-}
+    // Store in history
+    messageHistory.push({ sender, text });
+  }
 
-// Handle keyboard events
-messageInput.addEventListener('keydown', (e) => {
+  // Event listeners
+  sendButton.addEventListener('click', sendMessage);
+  userInput.addEventListener('keypress', e => {
     if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        sendMessage();
+      e.preventDefault();
+      sendMessage();
     }
-});
+  });
 
-// Handle click events
-sendButton.addEventListener('click', sendMessage);
-
-// Handle messages from extension
-window.addEventListener('message', event => {
+  // Handle messages from extension
+  window.addEventListener('message', event => {
     const message = event.data;
-
     switch (message.type) {
-        case 'addMessage':
-            addMessage(message.message);
-            break;
-        case 'showTyping':
-            typingIndicator.classList.remove('hidden');
-            break;
-        case 'hideTyping':
-            typingIndicator.classList.add('hidden');
-            break;
+      case 'response':
+        addMessageToUI('assistant', message.value);
+        break;
+      case 'error':
+        addMessageToUI('error', message.value);
+        break;
     }
-});
+  });
 
-// Initial button state
-updateSendButton();
+  // Restore focus
+  userInput.focus();
+})();
