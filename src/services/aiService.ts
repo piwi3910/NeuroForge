@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 
 export interface AIResponse {
     content: string;
-    type: 'explanation' | 'suggestion' | 'documentation' | 'implementation' | 'test' | 'conversion';
+    type: 'explanation' | 'suggestion' | 'documentation' | 'implementation' | 'test' | 'conversion' | 'chat';
     confidence: number;
 }
 
@@ -11,6 +11,20 @@ export class AIService {
 
     constructor() {
         this.config = vscode.workspace.getConfiguration('neuroforge');
+    }
+
+    /**
+     * Generates a chat response
+     * @param message User message
+     * @returns AI-generated response
+     */
+    public async generateResponse(message: string): Promise<AIResponse> {
+        // TODO: Implement actual AI chat integration
+        return {
+            content: `I understand you're asking about: "${message}". How can I help you with that?`,
+            type: 'chat',
+            confidence: 0.8
+        };
     }
 
     /**

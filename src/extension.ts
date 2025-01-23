@@ -10,6 +10,7 @@ import { AnalyzeDependenciesCommand } from './commands/analyzeDependencies';
 import { CompletionProvider } from './services/completionProvider';
 import { TelemetryReporter } from './services/telemetryReporter';
 import { CacheService } from './services/cacheService';
+import { ChatViewProvider } from './views/chatViewProvider';
 
 // This method is called when your extension is activated
 export function activate(context: vscode.ExtensionContext) {
@@ -36,6 +37,25 @@ export function activate(context: vscode.ExtensionContext) {
     generateTests.register(context);
     convertCode.register(context);
     analyzeDependencies.register(context);
+
+    // Register chat view
+    const chatViewProvider = new ChatViewProvider(context.extensionUri, aiService);
+    context.subscriptions.push(
+        vscode.window.registerWebviewViewProvider(
+            ChatViewProvider.viewType,
+            chatViewProvider
+        )
+    );
+
+    // Register settings command
+    context.subscriptions.push(
+        vscode.commands.registerCommand('neuroforge.openSettings', () => {
+            vscode.commands.executeCommand(
+                'workbench.action.openSettings',
+                'neuroforge'
+            );
+        })
+    );
 
     // Register completion provider
     const completionProvider = new CompletionProvider(aiService, languageService);
@@ -78,7 +98,8 @@ export function activate(context: vscode.ExtensionContext) {
             { label: "$(wand) Suggest Refactoring", command: 'neuroforge.suggestRefactor' },
             { label: "$(beaker) Generate Tests", command: 'neuroforge.generateTests' },
             { label: "$(sync) Convert Code", command: 'neuroforge.convertCode' },
-            { label: "$(references) Analyze Dependencies", command: 'neuroforge.analyzeDependencies' }
+            { label: "$(references) Analyze Dependencies", command: 'neuroforge.analyzeDependencies' },
+            { label: "$(gear) Settings", command: 'neuroforge.openSettings' }
         ];
 
         const selected = await vscode.window.showQuickPick(actions, {
@@ -104,7 +125,8 @@ export function activate(context: vscode.ExtensionContext) {
                     model: config.get('aiModel'),
                     maxTokens: config.get('maxTokens'),
                     language: config.get('language'),
-                    autoSuggest: config.get('autoSuggest')
+                    autoSuggest: config.get('autoSuggest'),
+                    ai: config.get('ai')
                 };
                 
                 aiService.updateSettings(settings);
