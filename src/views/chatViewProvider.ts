@@ -3,11 +3,10 @@ import * as vscode from 'vscode';
 import { ConfigurationService } from '../services/configurationService';
 
 export class ChatViewProvider implements vscode.WebviewViewProvider {
-  private _view?: vscode.WebviewView;
-  private readonly _configService: ConfigurationService;
+  private readonly configService: ConfigurationService;
 
-  constructor(private readonly _extensionUri: vscode.Uri) {
-    this._configService = new ConfigurationService();
+  constructor(private readonly extensionUri: vscode.Uri) {
+    this.configService = new ConfigurationService();
   }
 
   public resolveWebviewView(
@@ -15,11 +14,9 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     _context: vscode.WebviewViewResolveContext,
     _token: vscode.CancellationToken
   ): void {
-    this._view = webviewView;
-
     webviewView.webview.options = {
       enableScripts: true,
-      localResourceRoots: [this._extensionUri],
+      localResourceRoots: [this.extensionUri],
     };
 
     webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
@@ -29,11 +26,11 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 
   private _getHtmlForWebview(webview: vscode.Webview): string {
     const scriptUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(this._extensionUri, 'media', 'chat.js')
+      vscode.Uri.joinPath(this.extensionUri, 'media', 'chat.js')
     );
 
     const styleUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(this._extensionUri, 'media', 'chat.css')
+      vscode.Uri.joinPath(this.extensionUri, 'media', 'chat.css')
     );
 
     const nonce = this._getNonce();
@@ -65,9 +62,20 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       async (message: { type: string; value: string }) => {
         switch (message.type) {
           case 'userInput':
+            // Validate configuration before processing input
+            const validationErrors = await this.configService.validateSettings();
+            if (validationErrors.length > 0) {
+              void webview.postMessage({
+                type: 'error',
+                value: 'Configuration error: ' + validationErrors.join('\n'),
+              });
+              return;
+            }
+
             // TODO: Process user input and generate response
             void webview.postMessage({ type: 'response', value: 'Message received!' });
             break;
+
           case 'openSettings':
             // Replace chat view with settings
             await vscode.commands.executeCommand(

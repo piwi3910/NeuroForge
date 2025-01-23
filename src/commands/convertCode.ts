@@ -49,17 +49,17 @@ export async function convertCode(): Promise<void> {
         // Format the converted code
         const formattedCode = await languageService.formatCode(
           convertedCode.toString(),
-          targetLanguage
+          targetLanguage.toLowerCase()
         );
 
         // Create new document with converted code
-        const newDocument = await vscode.workspace.openTextDocument({
+        const doc = await vscode.workspace.openTextDocument({
           content: formattedCode,
           language: targetLanguage.toLowerCase(),
         });
 
         // Show the new document
-        await vscode.window.showTextDocument(newDocument, {
+        await vscode.window.showTextDocument(doc, {
           viewColumn: vscode.ViewColumn.Beside,
         });
 

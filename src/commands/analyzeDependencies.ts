@@ -1,6 +1,5 @@
 import * as vscode from 'vscode';
 
-import { CacheService } from '../services/cacheService';
 import { DependencyAnalyzer } from '../services/dependencyAnalyzer';
 import { DependencyTreeProvider } from '../views/dependencyTreeProvider';
 
@@ -12,7 +11,6 @@ interface DependencyDetails {
 
 export async function analyzeDependencies(_context: vscode.ExtensionContext): Promise<void> {
   const analyzer = new DependencyAnalyzer();
-  const _cacheService = new CacheService();
   const treeDataProvider = new DependencyTreeProvider(analyzer);
 
   // Register the tree data provider
@@ -41,7 +39,7 @@ export async function analyzeDependencies(_context: vscode.ExtensionContext): Pr
 
         panel.webview.html = getDetailsWebviewContent(details);
       } catch (error) {
-        vscode.window.showErrorMessage(`Failed to load dependency details: ${error}`);
+        void vscode.window.showErrorMessage(`Failed to load dependency details: ${error}`);
       }
     }
   );

@@ -18,12 +18,27 @@ export class AIService {
     if (!this.apiKey) {
       throw new Error('API key not configured. Please set neuroforge.apiKey in settings.');
     }
+
+    const validProviders = ['anthropic', 'openai'];
+    if (!validProviders.includes(this.provider)) {
+      throw new Error(
+        `Invalid provider: ${this.provider}. Must be one of: ${validProviders.join(', ')}`
+      );
+    }
   }
 
   private async makeRequest<T>(_endpoint: string, _data: unknown): Promise<T> {
     this.validateConfig();
-    // TODO: Implement actual API request
-    return {} as T;
+
+    try {
+      // TODO: Implement actual API request
+      console.warn('Using mock response - API integration not implemented yet');
+      return {
+        toString: () => 'Mock response - API integration not implemented yet',
+      } as T;
+    } catch (error) {
+      throw new Error(`API request failed: ${error}`);
+    }
   }
 
   public async explainCode(code: string): Promise<AIResponse> {
@@ -32,18 +47,6 @@ export class AIService {
       return response;
     } catch (error) {
       throw new Error(`Failed to explain code: ${error}`);
-    }
-  }
-
-  public async convertCode(code: string, targetLanguage: string): Promise<AIResponse> {
-    try {
-      const response = await this.makeRequest<AIResponse>('/convert', {
-        code,
-        targetLanguage,
-      });
-      return response;
-    } catch (error) {
-      throw new Error(`Failed to convert code: ${error}`);
     }
   }
 
@@ -98,6 +101,15 @@ export class AIService {
       return response;
     } catch (error) {
       throw new Error(`Failed to review code: ${error}`);
+    }
+  }
+
+  public async convertCode(code: string, targetLanguage: string): Promise<AIResponse> {
+    try {
+      const response = await this.makeRequest<AIResponse>('/convert', { code, targetLanguage });
+      return response;
+    } catch (error) {
+      throw new Error(`Failed to convert code: ${error}`);
     }
   }
 }

@@ -1,14 +1,18 @@
 import * as vscode from 'vscode';
 
 export class TelemetryReporter {
-  private readonly extensionId: string;
-  private readonly extensionVersion: string;
   private enabled: boolean;
+  private readonly metadata: { [key: string]: string };
 
   constructor(extensionId: string, extensionVersion: string) {
-    this.extensionId = extensionId;
-    this.extensionVersion = extensionVersion;
     this.enabled = vscode.workspace.getConfiguration('neuroforge').get('telemetry.enabled', true);
+
+    this.metadata = {
+      extensionId,
+      extensionVersion,
+      vscodeVersion: vscode.version,
+      platform: process.platform,
+    };
 
     // Listen for configuration changes
     vscode.workspace.onDidChangeConfiguration(e => {
@@ -20,28 +24,48 @@ export class TelemetryReporter {
     });
   }
 
-  public sendError(error: Error, _properties?: Record<string, string>): void {
+  public sendError(error: Error, properties?: Record<string, string>): void {
     if (!this.enabled) {
       return;
     }
+
+    const errorData = {
+      ...this.metadata,
+      ...properties,
+      errorName: error.name,
+      errorMessage: error.message,
+      errorStack: error.stack,
+    };
 
     // Use VSCode's built-in error reporting
     void vscode.window.showErrorMessage(`NeuroForge Error: ${error.message}`);
+
+    // TODO: Implement proper error telemetry
+    console.error('Telemetry Error:', errorData);
   }
 
-  public sendEvent(eventName: string, _properties?: Record<string, string>): void {
+  public sendEvent(eventName: string, properties?: Record<string, string>): void {
     if (!this.enabled) {
       return;
     }
 
-    // TODO: Implement proper telemetry reporting
-    // For now, we'll just log errors to help with debugging
+    const eventData = {
+      ...this.metadata,
+      ...properties,
+      eventName,
+      timestamp: new Date().toISOString(),
+    };
+
+    // TODO: Implement proper event telemetry
     if (eventName.includes('error') || eventName.includes('failure')) {
-      void vscode.window.showErrorMessage(`NeuroForge Event: ${eventName}`);
+      console.error('Telemetry Event:', eventData);
+    } else {
+      console.warn('Telemetry Event:', eventData);
     }
   }
 
   public dispose(): void {
     // Clean up any resources if needed
+    this.sendEvent('extension.disposed');
   }
 }
