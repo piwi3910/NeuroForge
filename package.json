@@ -157,7 +157,10 @@
         "neuroforge.provider": {
           "type": "string",
           "default": "anthropic",
-          "enum": ["anthropic", "openai"],
+          "enum": [
+            "anthropic",
+            "openai"
+          ],
           "description": "AI provider to use"
         },
         "neuroforge.apiKey": {
@@ -186,7 +189,7 @@
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src --ext ts",
     "test": "node ./out/test/runTest.js",
-    "prepare": "husky install",
+    "prepare": "husky",
     "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,css,md}\""
   },
   "devDependencies": {
@@ -195,13 +198,13 @@
     "@types/vscode": "^1.96.0",
     "@typescript-eslint/eslint-plugin": "^8.17.0",
     "@typescript-eslint/parser": "^8.17.0",
-    "eslint": "^9.16.0",
-    "typescript": "^5.7.2",
     "@vscode/test-cli": "^0.0.10",
     "@vscode/test-electron": "^2.4.1",
+    "eslint": "^9.16.0",
     "husky": "^8.0.0",
     "lint-staged": "^15.0.0",
-    "prettier": "^3.0.0"
+    "prettier": "^3.0.0",
+    "typescript": "^5.7.2"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx}": [
