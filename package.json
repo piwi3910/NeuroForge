@@ -6,7 +6,6 @@
   "publisher": "neuroforge",
   "private": true,
   "license": "MIT",
-  "icon": "resources/icon.png",
   "galleryBanner": {
     "color": "#1e1e1e",
     "theme": "dark"
@@ -40,7 +39,7 @@
         {
           "id": "neuroforge-panel",
           "title": "NeuroForge",
-          "icon": "$(symbol-misc)"
+          "icon": "$(brain)"
         }
       ]
     },
@@ -50,14 +49,14 @@
           "type": "webview",
           "id": "neuroforge.chatView",
           "name": "Chat",
-          "icon": "$(comment-discussion)"
+          "icon": "$(brain)"
         }
       ],
       "explorer": [
         {
           "id": "dependencyExplorer",
           "name": "Dependencies",
-          "icon": "$(package)"
+          "icon": "$(brain)"
         }
       ]
     },
@@ -66,37 +65,37 @@
         "command": "neuroforge.explainCode",
         "title": "NeuroForge: Explain Code",
         "category": "NeuroForge",
-        "icon": "$(lightbulb)"
+        "icon": "$(brain)"
       },
       {
         "command": "neuroforge.generateDocs",
         "title": "NeuroForge: Generate Documentation",
         "category": "NeuroForge",
-        "icon": "$(note)"
+        "icon": "$(brain)"
       },
       {
         "command": "neuroforge.suggestRefactor",
         "title": "NeuroForge: Suggest Refactoring",
         "category": "NeuroForge",
-        "icon": "$(wand)"
+        "icon": "$(brain)"
       },
       {
         "command": "neuroforge.generateTests",
         "title": "NeuroForge: Generate Tests",
         "category": "NeuroForge",
-        "icon": "$(beaker)"
+        "icon": "$(brain)"
       },
       {
         "command": "neuroforge.convertCode",
         "title": "NeuroForge: Convert Code",
         "category": "NeuroForge",
-        "icon": "$(sync)"
+        "icon": "$(brain)"
       },
       {
         "command": "neuroforge.analyzeDependencies",
         "title": "NeuroForge: Analyze Dependencies",
         "category": "NeuroForge",
-        "icon": "$(references)"
+        "icon": "$(brain)"
       },
       {
         "command": "neuroforge.openSettings",
@@ -108,7 +107,7 @@
         "command": "neuroforge.showMenu",
         "title": "NeuroForge: Show Actions Menu",
         "category": "NeuroForge",
-        "icon": "$(symbol-misc)"
+        "icon": "$(brain)"
       }
     ],
     "menus": {
