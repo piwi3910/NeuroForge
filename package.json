@@ -3,6 +3,7 @@
   "displayName": "NeuroForge",
   "description": "AI-powered coding assistant for VS Code",
   "version": "0.0.1",
+  "publisher": "neuroforge",
   "engines": {
     "vscode": "^1.96.0"
   },
@@ -13,7 +14,7 @@
     "Other"
   ],
   "activationEvents": [
-    "onStartupFinished"
+    "*"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -22,24 +23,24 @@
         {
           "id": "neuroforge-explorer",
           "title": "NeuroForge",
-          "icon": "$(brain)"
+          "icon": "$(symbol-misc)"
         }
       ]
     },
     "views": {
       "neuroforge-explorer": [
         {
-          "id": "neuroForgeDependencies",
-          "name": "Dependencies",
-          "icon": "$(references)",
-          "contextualTitle": "Project Dependencies"
-        },
-        {
           "type": "webview",
           "id": "neuroforge.chatView",
           "name": "Chat",
           "icon": "$(comment-discussion)",
           "contextualTitle": "AI Assistant"
+        },
+        {
+          "id": "neuroForgeDependencies",
+          "name": "Dependencies",
+          "icon": "$(references)",
+          "contextualTitle": "Project Dependencies"
         }
       ]
     },
@@ -100,7 +101,7 @@
         "command": "neuroforge.showMenu",
         "title": "NeuroForge: Show Actions Menu",
         "category": "NeuroForge",
-        "icon": "$(brain)"
+        "icon": "$(symbol-misc)"
       }
     ],
     "menus": {
@@ -325,22 +326,23 @@
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src",
-    "test": "vscode-test"
+    "test": "node ./out/test/runTest.js"
   },
   "devDependencies": {
-    "@types/vscode": "^1.96.0",
     "@types/mocha": "^10.0.10",
     "@types/node": "20.x",
+    "@types/vscode": "^1.96.0",
     "@typescript-eslint/eslint-plugin": "^8.17.0",
     "@typescript-eslint/parser": "^8.17.0",
     "eslint": "^9.16.0",
+    "mocha": "^10.8.0",
     "typescript": "^5.7.2",
     "@vscode/test-cli": "^0.0.10",
     "@vscode/test-electron": "^2.4.1"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourusername/neuroforge.git"
+    "url": "https://github.com/piwi3910/neuroforge.git"
   },
   "keywords": [
     "ai",
@@ -352,10 +354,10 @@
     "refactoring",
     "code-conversion"
   ],
-  "author": "Your Name",
+  "author": "Pascal Watteel",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/yourusername/neuroforge/issues"
+    "url": "https://github.com/piwi3910/neuroforge/issues"
   },
-  "homepage": "https://github.com/yourusername/neuroforge#readme"
+  "homepage": "https://github.com/piwi3910/neuroforge#readme"
 }
