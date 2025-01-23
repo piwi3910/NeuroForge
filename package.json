@@ -20,45 +20,35 @@
     "Other"
   ],
   "activationEvents": [
-    "onStartupFinished",
-    "onCommand:neuroforge.explainCode",
-    "onCommand:neuroforge.generateDocs",
-    "onCommand:neuroforge.suggestRefactor",
-    "onCommand:neuroforge.generateTests",
-    "onCommand:neuroforge.convertCode",
-    "onCommand:neuroforge.analyzeDependencies",
-    "onCommand:neuroforge.openSettings",
-    "onCommand:neuroforge.showMenu",
-    "onView:neuroforge.chatView",
-    "onView:dependencyExplorer"
+    "*"
   ],
   "main": "./out/extension.js",
   "contributes": {
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "neuroforge-sidebar",
+          "id": "neuroforge",
           "title": "NeuroForge",
           "icon": "$(brain)"
         }
       ],
       "panel": [
         {
-          "id": "neuroforge-panel",
-          "title": "NeuroForge",
+          "id": "neuroforge-chat",
+          "title": "NeuroForge Chat",
           "icon": "$(brain)"
         }
       ]
     },
     "views": {
-      "neuroforge-sidebar": [
+      "neuroforge": [
         {
           "id": "dependencyExplorer",
           "name": "Dependencies",
           "icon": "$(brain)"
         }
       ],
-      "neuroforge-panel": [
+      "neuroforge-chat": [
         {
           "type": "webview",
           "id": "neuroforge.chatView",

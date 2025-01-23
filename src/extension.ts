@@ -8,12 +8,15 @@ import { generateTests } from './commands/generateTests';
 import { suggestRefactor } from './commands/suggestRefactor';
 import { AIService } from './services/aiService';
 import { CompletionProvider } from './services/completionProvider';
+import { DependencyAnalyzer } from './services/dependencyAnalyzer';
 import { ChatViewProvider } from './views/chatViewProvider';
+import { DependencyTreeProvider } from './views/dependencyTreeProvider';
 
 // Create output channel for logging
 const outputChannel = vscode.window.createOutputChannel('NeuroForge');
 
 export function activate(context: vscode.ExtensionContext): void {
+  outputChannel.show();
   outputChannel.appendLine('NeuroForge extension is being activated...');
 
   try {
@@ -25,7 +28,18 @@ export function activate(context: vscode.ExtensionContext): void {
     outputChannel.appendLine('Registering Chat View Provider...');
     const chatViewProvider = new ChatViewProvider(context.extensionUri);
     context.subscriptions.push(
-      vscode.window.registerWebviewViewProvider('neuroforge.chatView', chatViewProvider)
+      vscode.window.registerWebviewViewProvider('neuroforge.chatView', chatViewProvider, {
+        webviewOptions: {
+          retainContextWhenHidden: true,
+        },
+      })
+    );
+
+    // Register Dependency Tree Provider
+    outputChannel.appendLine('Registering Dependency Tree Provider...');
+    const dependencyTreeProvider = new DependencyTreeProvider(new DependencyAnalyzer());
+    context.subscriptions.push(
+      vscode.window.registerTreeDataProvider('dependencyExplorer', dependencyTreeProvider)
     );
 
     // Register completion provider
@@ -123,6 +137,7 @@ export function activate(context: vscode.ExtensionContext): void {
     }
 
     outputChannel.appendLine('NeuroForge extension activated successfully!');
+    void vscode.window.showInformationMessage('NeuroForge activated successfully!');
   } catch (error) {
     outputChannel.appendLine(`Error activating NeuroForge: ${error}`);
     void vscode.window.showErrorMessage(`Failed to activate NeuroForge: ${error}`);
