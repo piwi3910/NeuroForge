@@ -6,14 +6,17 @@ import { GenerateDocsCommand } from './commands/generateDocs';
 import { SuggestRefactorCommand } from './commands/suggestRefactor';
 import { GenerateTestsCommand } from './commands/generateTests';
 import { ConvertCodeCommand } from './commands/convertCode';
+import { AnalyzeDependenciesCommand } from './commands/analyzeDependencies';
 import { CompletionProvider } from './services/completionProvider';
 import { TelemetryReporter } from './services/telemetryReporter';
+import { CacheService } from './services/cacheService';
 
 // This method is called when your extension is activated
 export function activate(context: vscode.ExtensionContext) {
     console.log('NeuroForge extension is now active!');
 
     // Initialize services
+    const cacheService = new CacheService();
     const languageService = new LanguageService();
     const aiService = new AIService();
     const telemetryReporter = new TelemetryReporter();
@@ -24,6 +27,7 @@ export function activate(context: vscode.ExtensionContext) {
     const suggestRefactor = new SuggestRefactorCommand(languageService, aiService);
     const generateTests = new GenerateTestsCommand(languageService, aiService);
     const convertCode = new ConvertCodeCommand(languageService, aiService);
+    const analyzeDependencies = new AnalyzeDependenciesCommand(cacheService);
 
     // Register all commands
     explainCode.register(context);
@@ -31,6 +35,7 @@ export function activate(context: vscode.ExtensionContext) {
     suggestRefactor.register(context);
     generateTests.register(context);
     convertCode.register(context);
+    analyzeDependencies.register(context);
 
     // Register completion provider
     const completionProvider = new CompletionProvider(aiService, languageService);
@@ -72,7 +77,8 @@ export function activate(context: vscode.ExtensionContext) {
             { label: "$(note) Generate Documentation", command: 'neuroforge.generateDocs' },
             { label: "$(wand) Suggest Refactoring", command: 'neuroforge.suggestRefactor' },
             { label: "$(beaker) Generate Tests", command: 'neuroforge.generateTests' },
-            { label: "$(sync) Convert Code", command: 'neuroforge.convertCode' }
+            { label: "$(sync) Convert Code", command: 'neuroforge.convertCode' },
+            { label: "$(references) Analyze Dependencies", command: 'neuroforge.analyzeDependencies' }
         ];
 
         const selected = await vscode.window.showQuickPick(actions, {
@@ -103,6 +109,9 @@ export function activate(context: vscode.ExtensionContext) {
                 
                 aiService.updateSettings(settings);
                 telemetryReporter.sendTelemetryEvent('settings.updated', settings as Record<string, string>);
+                
+                // Clear cache on configuration change
+                cacheService.clear();
             }
         })
     );
@@ -117,7 +126,8 @@ export function activate(context: vscode.ExtensionContext) {
                     new vscode.CodeAction('NeuroForge: Generate Documentation', vscode.CodeActionKind.QuickFix),
                     new vscode.CodeAction('NeuroForge: Suggest Refactoring', vscode.CodeActionKind.QuickFix),
                     new vscode.CodeAction('NeuroForge: Generate Tests', vscode.CodeActionKind.QuickFix),
-                    new vscode.CodeAction('NeuroForge: Convert Code', vscode.CodeActionKind.QuickFix)
+                    new vscode.CodeAction('NeuroForge: Convert Code', vscode.CodeActionKind.QuickFix),
+                    new vscode.CodeAction('NeuroForge: Analyze Dependencies', vscode.CodeActionKind.QuickFix)
                 ];
 
                 actions.forEach(action => {
