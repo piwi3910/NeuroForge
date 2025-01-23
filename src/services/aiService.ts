@@ -7,11 +7,13 @@ interface AIResponse {
 export class AIService {
   private readonly apiKey: string;
   private readonly provider: string;
+  private readonly outputChannel: vscode.OutputChannel;
 
   constructor() {
     const config = vscode.workspace.getConfiguration('neuroforge');
     this.apiKey = config.get<string>('apiKey') || '';
     this.provider = config.get<string>('provider') || 'anthropic';
+    this.outputChannel = vscode.window.createOutputChannel('NeuroForge AI');
   }
 
   private validateConfig(): void {
@@ -32,12 +34,40 @@ export class AIService {
 
     try {
       // TODO: Implement actual API request
+      this.outputChannel.appendLine(
+        `Making request to ${_endpoint} with data: ${JSON.stringify(_data)}`
+      );
       console.warn('Using mock response - API integration not implemented yet');
       return {
         toString: () => 'Mock response - API integration not implemented yet',
       } as T;
     } catch (error) {
+      this.outputChannel.appendLine(`API request failed: ${error}`);
       throw new Error(`API request failed: ${error}`);
+    }
+  }
+
+  public async chat(message: string): Promise<string> {
+    try {
+      this.outputChannel.appendLine(`Processing chat message: ${message}`);
+      const _response = await this.makeRequest<AIResponse>('/chat', {
+        message,
+        provider: this.provider,
+        maxTokens: vscode.workspace.getConfiguration('neuroforge').get('maxTokens'),
+        temperature: vscode.workspace.getConfiguration('neuroforge').get('temperature'),
+      });
+
+      // For now, return a mock response based on the message
+      if (message.toLowerCase().includes('hello') || message.toLowerCase().includes('hi')) {
+        return "Hello! I'm NeuroForge, your AI coding assistant. How can I help you today?";
+      } else if (message.toLowerCase().includes('help')) {
+        return "I can help you with various coding tasks such as:\n- Explaining code\n- Generating documentation\n- Suggesting refactoring\n- Generating tests\n- Converting code between languages\n\nJust let me know what you'd like to do!";
+      } else {
+        return `I understand you want to "${message}". I'm currently in development, but once fully implemented, I'll be able to help you with this request. For now, you can try commands like "help" to see what I can do.`;
+      }
+    } catch (error) {
+      this.outputChannel.appendLine(`Chat error: ${error}`);
+      throw new Error(`Failed to process chat message: ${error}`);
     }
   }
 

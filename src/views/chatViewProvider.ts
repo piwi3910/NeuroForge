@@ -1,12 +1,15 @@
 import * as vscode from 'vscode';
 
+import { AIService } from '../services/aiService';
 import { ConfigurationService } from '../services/configurationService';
 
 export class ChatViewProvider implements vscode.WebviewViewProvider {
   private readonly configService: ConfigurationService;
+  private readonly aiService: AIService;
 
   constructor(private readonly extensionUri: vscode.Uri) {
     this.configService = new ConfigurationService();
+    this.aiService = new AIService();
   }
 
   public resolveWebviewView(
@@ -40,13 +43,15 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         <head>
           <meta charset="UTF-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource}; script-src 'nonce-${nonce}';">
+          <meta http-equiv="Content-Security-Policy" content="default-src 'self' ${webview.cspSource}; style-src 'self' ${webview.cspSource}; script-src 'nonce-${nonce}' ${webview.cspSource}; img-src 'self' ${webview.cspSource} https:; font-src 'self' ${webview.cspSource};">
           <link href="${styleUri}" rel="stylesheet">
           <title>NeuroForge Chat</title>
         </head>
         <body>
           <div id="chat-container">
-            <div id="messages"></div>
+            <div id="messages">
+              <div class="message assistant-message">Welcome to NeuroForge! I'm your AI coding assistant. How can I help you today?</div>
+            </div>
             <div id="input-container">
               <textarea id="user-input" placeholder="Type your message..."></textarea>
               <button id="send-button">Send</button>
@@ -62,26 +67,57 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       async (message: { type: string; value: string }) => {
         switch (message.type) {
           case 'userInput':
-            // Validate configuration before processing input
-            const validationErrors = await this.configService.validateSettings();
-            if (validationErrors.length > 0) {
+            try {
+              // Validate configuration before processing input
+              const validationErrors = await this.configService.validateSettings();
+              if (validationErrors.length > 0) {
+                const configMessage = `To start using NeuroForge, please configure the following settings:\n\n${validationErrors.join('\n')}\n\nWould you like to configure these settings now?`;
+
+                void webview.postMessage({
+                  type: 'assistant',
+                  value: configMessage,
+                });
+
+                const response = await vscode.window.showInformationMessage(
+                  'Configure NeuroForge settings?',
+                  'Configure Now',
+                  'Later'
+                );
+
+                if (response === 'Configure Now') {
+                  void vscode.commands.executeCommand('neuroforge.openSettings');
+                }
+                return;
+              }
+
+              // Process the message using AIService
+              const aiResponse = await this.aiService.chat(message.value);
+              void webview.postMessage({
+                type: 'assistant',
+                value: aiResponse,
+              });
+            } catch (error) {
               void webview.postMessage({
                 type: 'error',
-                value: 'Configuration error: ' + validationErrors.join('\n'),
+                value: `Error: ${error instanceof Error ? error.message : 'Unknown error occurred'}`,
               });
-              return;
             }
-
-            // TODO: Process user input and generate response
-            void webview.postMessage({ type: 'response', value: 'Message received!' });
             break;
 
           case 'openSettings':
-            // Replace chat view with settings
             await vscode.commands.executeCommand(
               'workbench.action.openSettings',
               '@ext:neuroforge'
             );
+            break;
+
+          case 'log':
+            // Use console.warn for logging in development
+            console.warn('NeuroForge Chat:', message.value);
+            break;
+
+          case 'error':
+            console.error('NeuroForge Chat Error:', message.value);
             break;
         }
       },

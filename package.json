@@ -29,31 +29,30 @@
         {
           "id": "neuroforge",
           "title": "NeuroForge",
-          "icon": "$(brain)"
-        }
-      ],
-      "panel": [
-        {
-          "id": "neuroforge-chat",
-          "title": "NeuroForge Chat",
-          "icon": "$(brain)"
+          "icon": "$(smiley)"
         }
       ]
     },
     "views": {
       "neuroforge": [
         {
-          "id": "dependencyExplorer",
-          "name": "Dependencies",
-          "icon": "$(brain)"
-        }
-      ],
-      "neuroforge-chat": [
-        {
           "type": "webview",
           "id": "neuroforge.chatView",
           "name": "Chat",
-          "icon": "$(brain)"
+          "icon": "$(smiley)",
+          "when": "!neuroforge.showingSettings"
+        },
+        {
+          "type": "webview",
+          "id": "neuroforge.settingsView",
+          "name": "Settings",
+          "icon": "$(gear)",
+          "when": "neuroforge.showingSettings"
+        },
+        {
+          "id": "dependencyExplorer",
+          "name": "Dependencies",
+          "icon": "$(smiley)"
         }
       ]
     },
@@ -62,37 +61,37 @@
         "command": "neuroforge.explainCode",
         "title": "NeuroForge: Explain Code",
         "category": "NeuroForge",
-        "icon": "$(brain)"
+        "icon": "$(smiley)"
       },
       {
         "command": "neuroforge.generateDocs",
         "title": "NeuroForge: Generate Documentation",
         "category": "NeuroForge",
-        "icon": "$(brain)"
+        "icon": "$(smiley)"
       },
       {
         "command": "neuroforge.suggestRefactor",
         "title": "NeuroForge: Suggest Refactoring",
         "category": "NeuroForge",
-        "icon": "$(brain)"
+        "icon": "$(smiley)"
       },
       {
         "command": "neuroforge.generateTests",
         "title": "NeuroForge: Generate Tests",
         "category": "NeuroForge",
-        "icon": "$(brain)"
+        "icon": "$(smiley)"
       },
       {
         "command": "neuroforge.convertCode",
         "title": "NeuroForge: Convert Code",
         "category": "NeuroForge",
-        "icon": "$(brain)"
+        "icon": "$(smiley)"
       },
       {
         "command": "neuroforge.analyzeDependencies",
         "title": "NeuroForge: Analyze Dependencies",
         "category": "NeuroForge",
-        "icon": "$(brain)"
+        "icon": "$(smiley)"
       },
       {
         "command": "neuroforge.openSettings",
@@ -101,10 +100,16 @@
         "icon": "$(gear)"
       },
       {
+        "command": "neuroforge.backToChat",
+        "title": "NeuroForge: Back to Chat",
+        "category": "NeuroForge",
+        "icon": "$(smiley)"
+      },
+      {
         "command": "neuroforge.showMenu",
         "title": "NeuroForge: Show Actions Menu",
         "category": "NeuroForge",
-        "icon": "$(brain)"
+        "icon": "$(smiley)"
       }
     ],
     "menus": {
@@ -112,6 +117,11 @@
         {
           "command": "neuroforge.openSettings",
           "when": "view == neuroforge.chatView",
+          "group": "navigation"
+        },
+        {
+          "command": "neuroforge.backToChat",
+          "when": "view == neuroforge.settingsView",
           "group": "navigation"
         }
       ],
@@ -161,8 +171,9 @@
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./",
+    "compile": "tsc -p ./ && npm run copy-media",
+    "watch": "tsc -watch -p ./ && npm run copy-media",
+    "copy-media": "npx copyfiles -u 1 media/**/* out/media",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src --ext ts",
     "test": "node ./out/test/runTest.js",
@@ -176,7 +187,12 @@
     "@typescript-eslint/parser": "^8.17.0",
     "@vscode/test-cli": "^0.0.10",
     "@vscode/test-electron": "^2.4.1",
+    "copyfiles": "^2.4.1",
     "eslint": "^9.16.0",
+    "eslint-import-resolver-typescript": "^3.7.0",
+    "eslint-plugin-import": "^2.31.0",
+    "eslint-plugin-jest": "^28.11.0",
+    "eslint-plugin-prettier": "^5.2.3",
     "husky": "^9.1.7",
     "lint-staged": "^15.0.0",
     "prettier": "^3.0.0",

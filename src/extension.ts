@@ -11,6 +11,7 @@ import { CompletionProvider } from './services/completionProvider';
 import { DependencyAnalyzer } from './services/dependencyAnalyzer';
 import { ChatViewProvider } from './views/chatViewProvider';
 import { DependencyTreeProvider } from './views/dependencyTreeProvider';
+import { SettingsViewProvider } from './views/settingsViewProvider';
 
 // Create output channel for logging
 const outputChannel = vscode.window.createOutputChannel('NeuroForge');
@@ -24,11 +25,25 @@ export function activate(context: vscode.ExtensionContext): void {
     outputChannel.appendLine('Initializing services...');
     const aiService = new AIService();
 
+    // Set initial context for view visibility
+    void vscode.commands.executeCommand('setContext', 'neuroforge.showingSettings', false);
+
     // Register Chat View Provider
     outputChannel.appendLine('Registering Chat View Provider...');
     const chatViewProvider = new ChatViewProvider(context.extensionUri);
     context.subscriptions.push(
       vscode.window.registerWebviewViewProvider('neuroforge.chatView', chatViewProvider, {
+        webviewOptions: {
+          retainContextWhenHidden: true,
+        },
+      })
+    );
+
+    // Register Settings View Provider
+    outputChannel.appendLine('Registering Settings View Provider...');
+    const settingsViewProvider = new SettingsViewProvider(context.extensionUri);
+    context.subscriptions.push(
+      vscode.window.registerWebviewViewProvider('neuroforge.settingsView', settingsViewProvider, {
         webviewOptions: {
           retainContextWhenHidden: true,
         },
@@ -65,8 +80,13 @@ export function activate(context: vscode.ExtensionContext): void {
       vscode.commands.registerCommand('neuroforge.analyzeDependencies', () =>
         analyzeDependencies(context)
       ),
-      vscode.commands.registerCommand('neuroforge.openSettings', () => {
-        void vscode.commands.executeCommand('workbench.action.openSettings', '@ext:neuroforge');
+      vscode.commands.registerCommand('neuroforge.openSettings', async () => {
+        // Show settings view and hide chat view
+        await vscode.commands.executeCommand('setContext', 'neuroforge.showingSettings', true);
+      }),
+      vscode.commands.registerCommand('neuroforge.backToChat', async () => {
+        // Show chat view and hide settings view
+        await vscode.commands.executeCommand('setContext', 'neuroforge.showingSettings', false);
       }),
       vscode.commands.registerCommand('neuroforge.showMenu', async () => {
         const commands = [
