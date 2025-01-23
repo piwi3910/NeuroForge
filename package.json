@@ -19,7 +19,7 @@
   "main": "./out/extension.js",
   "contributes": {
     "viewsContainers": {
-      "activitybar": [
+      "panel": [
         {
           "id": "neuroforge-explorer",
           "title": "NeuroForge",
@@ -32,7 +32,7 @@
         {
           "type": "webview",
           "id": "neuroforge.chatView",
-          "name": "NeuroForge"
+          "name": "NeuroForge Chat"
         }
       ]
     },
@@ -107,50 +107,6 @@
         "label": "NeuroForge"
       }
     ],
-    "keybindings": [
-      {
-        "command": "neuroforge.explainCode",
-        "key": "ctrl+shift+e",
-        "mac": "cmd+shift+e",
-        "when": "editorTextFocus"
-      },
-      {
-        "command": "neuroforge.generateDocs",
-        "key": "ctrl+shift+d",
-        "mac": "cmd+shift+d",
-        "when": "editorTextFocus"
-      },
-      {
-        "command": "neuroforge.suggestRefactor",
-        "key": "ctrl+shift+r",
-        "mac": "cmd+shift+r",
-        "when": "editorTextFocus"
-      },
-      {
-        "command": "neuroforge.generateTests",
-        "key": "ctrl+shift+t",
-        "mac": "cmd+shift+t",
-        "when": "editorTextFocus"
-      },
-      {
-        "command": "neuroforge.convertCode",
-        "key": "ctrl+shift+c",
-        "mac": "cmd+shift+c",
-        "when": "editorTextFocus"
-      },
-      {
-        "command": "neuroforge.analyzeDependencies",
-        "key": "ctrl+shift+a",
-        "mac": "cmd+shift+a",
-        "when": "editorTextFocus"
-      },
-      {
-        "command": "neuroforge.showMenu",
-        "key": "ctrl+shift+space",
-        "mac": "cmd+shift+space",
-        "when": "editorTextFocus"
-      }
-    ],
     "configuration": {
       "title": "NeuroForge",
       "properties": {
@@ -189,23 +145,17 @@
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src --ext ts",
     "test": "node ./out/test/runTest.js",
-    "prepare": "husky",
-    "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,css,md}\""
+    "prepare": "husky"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",
     "@types/node": "20.x",
     "@types/vscode": "^1.96.0",
-    "@typescript-eslint/eslint-plugin": "^8.21.0",
-    "@typescript-eslint/parser": "^8.21.0",
+    "@typescript-eslint/eslint-plugin": "^8.17.0",
+    "@typescript-eslint/parser": "^8.17.0",
     "@vscode/test-cli": "^0.0.10",
     "@vscode/test-electron": "^2.4.1",
     "eslint": "^9.16.0",
-    "eslint-config-prettier": "^10.0.1",
-    "eslint-import-resolver-typescript": "^3.7.0",
-    "eslint-plugin-import": "^2.31.0",
-    "eslint-plugin-jest": "^28.11.0",
-    "eslint-plugin-prettier": "^5.2.3",
     "husky": "^9.1.7",
     "lint-staged": "^15.0.0",
     "prettier": "^3.0.0",

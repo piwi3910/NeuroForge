@@ -11,7 +11,12 @@ export function activate(context: vscode.ExtensionContext): void {
   const chatViewProvider = new ChatViewProvider(context.extensionUri);
   const chatView = vscode.window.registerWebviewViewProvider(
     'neuroforge.chatView',
-    chatViewProvider
+    chatViewProvider,
+    {
+      webviewOptions: {
+        retainContextWhenHidden: true,
+      },
+    }
   );
   context.subscriptions.push(chatView);
 
@@ -44,7 +49,10 @@ export function activate(context: vscode.ExtensionContext): void {
   );
 
   const openSettings = vscode.commands.registerCommand('neuroforge.openSettings', () => {
-    vscode.commands.executeCommand('workbench.action.openSettings', 'neuroforge');
+    // Focus the chat view first, then open settings
+    vscode.commands.executeCommand('neuroforge.chatView.focus').then(() => {
+      vscode.commands.executeCommand('workbench.action.openSettings', '@ext:neuroforge');
+    });
   });
 
   const showMenu = vscode.commands.registerCommand('neuroforge.showMenu', () => {

@@ -68,6 +68,13 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
             // TODO: Process user input and generate response
             void webview.postMessage({ type: 'response', value: 'Message received!' });
             break;
+          case 'openSettings':
+            // Replace chat view with settings
+            await vscode.commands.executeCommand(
+              'workbench.action.openSettings',
+              '@ext:neuroforge'
+            );
+            break;
         }
       },
       undefined,
