@@ -66,7 +66,7 @@ export class DependencyAnalyzer {
 
             // Build dependency graph
             progress?.report({ message: 'Building dependency graph...' });
-            this.buildDependencyGraph(dependencies);
+            await this.buildDependencyGraph(dependencies);
 
             // Find cycles
             progress?.report({ message: 'Detecting cycles...' });
@@ -78,7 +78,7 @@ export class DependencyAnalyzer {
 
             // Find missing imports
             progress?.report({ message: 'Finding missing imports...' });
-            this.findMissingImports(dependencies, missing);
+            await this.findMissingImports(dependencies, missing);
 
             const result: AnalysisResult = {
                 dependencies,
@@ -168,10 +168,10 @@ export class DependencyAnalyzer {
      * Builds the dependency graph
      * @param dependencies Map of dependency nodes
      */
-    private buildDependencyGraph(dependencies: Map<string, DependencyNode>): void {
+    private async buildDependencyGraph(dependencies: Map<string, DependencyNode>): Promise<void> {
         for (const [filePath, node] of dependencies.entries()) {
             for (const importPath of node.imports) {
-                const resolvedPath = this.resolvePath(filePath, importPath);
+                const resolvedPath = await this.resolvePath(filePath, importPath);
                 if (resolvedPath && dependencies.has(resolvedPath)) {
                     node.dependencies.add(resolvedPath);
                     dependencies.get(resolvedPath)?.dependents.add(filePath);
@@ -186,7 +186,7 @@ export class DependencyAnalyzer {
      * @param importPath Import path
      * @returns Resolved absolute path
      */
-    private resolvePath(fromPath: string, importPath: string): string | null {
+    private async resolvePath(fromPath: string, importPath: string): Promise<string | null> {
         if (importPath.startsWith('.')) {
             const dirPath = path.dirname(fromPath);
             const resolvedPath = path.resolve(dirPath, importPath);
@@ -195,8 +195,11 @@ export class DependencyAnalyzer {
             const extensions = ['.ts', '.tsx', '.js', '.jsx', '/index.ts', '/index.js'];
             for (const ext of extensions) {
                 const fullPath = resolvedPath + ext;
-                if (vscode.workspace.fs.stat(vscode.Uri.file(fullPath))) {
+                try {
+                    await vscode.workspace.fs.stat(vscode.Uri.file(fullPath));
                     return fullPath;
+                } catch {
+                    continue;
                 }
             }
         }
@@ -267,10 +270,10 @@ export class DependencyAnalyzer {
      * @param dependencies Map of dependency nodes
      * @param missing Array to store missing imports
      */
-    private findMissingImports(dependencies: Map<string, DependencyNode>, missing: string[]): void {
+    private async findMissingImports(dependencies: Map<string, DependencyNode>, missing: string[]): Promise<void> {
         for (const node of dependencies.values()) {
             for (const importPath of node.imports) {
-                const resolvedPath = this.resolvePath(node.path, importPath);
+                const resolvedPath = await this.resolvePath(node.path, importPath);
                 if (!resolvedPath || !dependencies.has(resolvedPath)) {
                     missing.push(`${node.path} -> ${importPath}`);
                 }
