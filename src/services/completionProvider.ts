@@ -1,13 +1,9 @@
 import * as vscode from 'vscode';
 
 import { AIService } from './aiService';
-import { LanguageService } from './languageService';
 
 export class CompletionProvider implements vscode.CompletionItemProvider {
-  constructor(
-    private readonly aiService: AIService,
-    private readonly _languageService: LanguageService
-  ) {}
+  constructor(private readonly aiService: AIService) {}
 
   async provideCompletionItems(
     document: vscode.TextDocument,
