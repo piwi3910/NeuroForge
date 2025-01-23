@@ -6,13 +6,29 @@ import { explainCode } from './commands/explainCode';
 import { generateDocs } from './commands/generateDocs';
 import { generateTests } from './commands/generateTests';
 import { suggestRefactor } from './commands/suggestRefactor';
+import { AIService } from './services/aiService';
+import { CompletionProvider } from './services/completionProvider';
 import { ChatViewProvider } from './views/chatViewProvider';
 
 export function activate(context: vscode.ExtensionContext): void {
+  // Initialize services
+  const aiService = new AIService();
+
   // Register Chat View Provider
   const chatViewProvider = new ChatViewProvider(context.extensionUri);
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider('neuroforge.chatView', chatViewProvider)
+  );
+
+  // Register completion provider
+  const completionProvider = new CompletionProvider(aiService);
+  context.subscriptions.push(
+    vscode.languages.registerCompletionItemProvider(
+      ['javascript', 'typescript', 'python', 'java', 'csharp', 'cpp', 'go', 'rust', 'php'],
+      completionProvider,
+      '.',
+      ' '
+    )
   );
 
   // Register Commands
