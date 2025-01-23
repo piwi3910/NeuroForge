@@ -26,7 +26,7 @@ export async function suggestRefactor(): Promise<void> {
   await vscode.window.withProgress(
     {
       location: vscode.ProgressLocation.Notification,
-      title: 'Analyzing code for refactoring suggestions...',
+      title: 'Analyzing code and suggesting refactoring...',
       cancellable: false,
     },
     async progress => {
@@ -50,9 +50,32 @@ export async function suggestRefactor(): Promise<void> {
           viewColumn: vscode.ViewColumn.Beside,
         });
 
+        // Ask if user wants to apply the suggested refactoring
+        const applyChanges = await vscode.window.showInformationMessage(
+          'Would you like to apply the suggested refactoring?',
+          'Apply',
+          'Cancel'
+        );
+
+        if (applyChanges === 'Apply') {
+          // Get the refactored code
+          const refactoredCode = await aiService.suggestRefactoring(selectedText);
+
+          // Format the refactored code
+          const formattedCode = await languageService.formatCode(
+            refactoredCode.toString(),
+            document.languageId
+          );
+
+          // Apply the changes
+          await editor.edit(editBuilder => {
+            editBuilder.replace(selection, formattedCode);
+          });
+        }
+
         progress.report({ increment: 100 });
       } catch (error) {
-        void vscode.window.showErrorMessage(`Failed to generate refactoring suggestions: ${error}`);
+        void vscode.window.showErrorMessage(`Failed to suggest refactoring: ${error}`);
       }
     }
   );

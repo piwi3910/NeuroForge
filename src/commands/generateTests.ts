@@ -3,27 +3,6 @@ import * as vscode from 'vscode';
 import { AIService } from '../services/aiService';
 import { LanguageService } from '../services/languageService';
 
-interface TestFramework {
-  name: string;
-  filePattern: string;
-  setupCode: string;
-}
-
-type CoverageType = 'unit' | 'integration' | 'both';
-
-const TEST_FRAMEWORKS: Record<string, TestFramework> = {
-  jest: {
-    name: 'Jest',
-    filePattern: '.test.ts',
-    setupCode: `import { describe, it, expect } from '@jest/globals';\n\n`,
-  },
-  mocha: {
-    name: 'Mocha',
-    filePattern: '.spec.ts',
-    setupCode: `import { describe, it } from 'mocha';\nimport { expect } from 'chai';\n\n`,
-  },
-};
-
 export async function generateTests(): Promise<void> {
   const editor = vscode.window.activeTextEditor;
   if (!editor) {
@@ -43,69 +22,45 @@ export async function generateTests(): Promise<void> {
   const languageService = new LanguageService();
   const aiService = new AIService();
 
-  // Get test framework preference
-  const framework = await vscode.window.showQuickPick(
-    Object.values(TEST_FRAMEWORKS).map(f => f.name),
-    {
-      placeHolder: 'Select test framework',
-    }
-  );
-
-  if (!framework) {
-    return;
-  }
-
-  const selectedFramework = Object.values(TEST_FRAMEWORKS).find(f => f.name === framework);
-  if (!selectedFramework) {
-    void vscode.window.showErrorMessage('Invalid test framework selected.');
-    return;
-  }
-
-  // Get test coverage preference
-  const coverageOptions: CoverageType[] = ['unit', 'integration', 'both'];
-  const coverage = await vscode.window.showQuickPick(coverageOptions, {
-    placeHolder: 'Select test coverage type',
-  });
-
-  if (!coverage) {
-    return;
-  }
-
   // Show progress indicator
   await vscode.window.withProgress(
     {
       location: vscode.ProgressLocation.Notification,
-      title: `Generating ${coverage} tests...`,
+      title: 'Generating tests...',
       cancellable: false,
     },
     async progress => {
       try {
         progress.report({ increment: 0 });
 
-        // Generate test code
-        const testCode = await aiService.generateTests(selectedText);
-        const formattedCode = await languageService.formatCode(
-          selectedFramework.setupCode + testCode.toString(),
-          'typescript'
+        // Get test code
+        const tests = await aiService.generateTests(selectedText);
+        const formattedTests = await languageService.formatCode(
+          tests.toString(),
+          document.languageId
         );
 
         // Create test file
-        const sourceFile = document.uri;
-        const testFile = sourceFile.with({
-          path: sourceFile.path.replace(/\.[^.]+$/, selectedFramework.filePattern),
-        });
+        const testFilePath = document.uri.fsPath.replace(/\.(ts|js|tsx|jsx)$/, '.test.$1');
+        const testUri = vscode.Uri.file(testFilePath);
 
-        // Create and show the test file
-        const edit = new vscode.WorkspaceEdit();
-        edit.createFile(testFile, { overwrite: true });
-        edit.insert(testFile, new vscode.Position(0, 0), formattedCode);
-        await vscode.workspace.applyEdit(edit);
-
-        // Open the test file
-        const doc = await vscode.workspace.openTextDocument(testFile);
-        await vscode.window.showTextDocument(doc, {
-          viewColumn: vscode.ViewColumn.Beside,
-        });
+        try {
+          await vscode.workspace.fs.stat(testUri);
+          // File exists, show in new tab
+          const doc = await vscode.workspace.openTextDocument(testUri);
+          await vscode.window.showTextDocument(doc, {
+            viewColumn: vscode.ViewColumn.Beside,
+          });
+        } catch {
+          // File doesn't exist, create new one
+          const doc = await vscode.workspace.openTextDocument({
+            content: formattedTests,
+            language: document.languageId,
+          });
+          await vscode.window.showTextDocument(doc, {
+            viewColumn: vscode.ViewColumn.Beside,
+          });
+        }
 
         progress.report({ increment: 100 });
       } catch (error) {

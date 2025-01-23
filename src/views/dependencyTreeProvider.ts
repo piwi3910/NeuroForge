@@ -5,7 +5,20 @@ import { DependencyAnalyzer } from '../services/dependencyAnalyzer';
 interface DependencyNode {
   name: string;
   version: string;
-  dependencies: DependencyNode[];
+  description?: string;
+  children: DependencyNode[];
+}
+
+class DependencyTreeItem extends vscode.TreeItem {
+  constructor(
+    public readonly label: string,
+    public readonly collapsibleState: vscode.TreeItemCollapsibleState,
+    public readonly description?: string,
+    public readonly children: DependencyTreeItem[] = []
+  ) {
+    super(label, collapsibleState);
+    this.tooltip = description;
+  }
 }
 
 export class DependencyTreeProvider implements vscode.TreeDataProvider<DependencyTreeItem> {
@@ -26,45 +39,56 @@ export class DependencyTreeProvider implements vscode.TreeDataProvider<Dependenc
   }
 
   async getChildren(element?: DependencyTreeItem): Promise<DependencyTreeItem[]> {
-    if (!element) {
-      // Root level - show all dependencies
-      const dependencies = this.dependencyAnalyzer.getDependencies();
-      return this.createDependencyItems(dependencies);
+    if (element) {
+      return element.children;
     }
 
-    // Child level - show nested dependencies
-    return this.createDependencyItems(element.node.dependencies);
+    const tree = await this.dependencyAnalyzer.getDependencyTree();
+    return this.convertToTreeItems(tree);
   }
 
-  private createDependencyItems(dependencies: DependencyNode[]): DependencyTreeItem[] {
-    return dependencies.map(
-      dep =>
-        new DependencyTreeItem(
-          dep,
-          dep.dependencies.length > 0
-            ? vscode.TreeItemCollapsibleState.Collapsed
-            : vscode.TreeItemCollapsibleState.None
-        )
-    );
+  private convertToTreeItems(nodes: DependencyNode[]): DependencyTreeItem[] {
+    return nodes.map(node => {
+      const hasChildren = node.children && node.children.length > 0;
+      const label = `${node.name}@${node.version}`;
+      const item = new DependencyTreeItem(
+        label,
+        hasChildren
+          ? vscode.TreeItemCollapsibleState.Collapsed
+          : vscode.TreeItemCollapsibleState.None,
+        node.description,
+        hasChildren ? this.convertToTreeItems(node.children) : []
+      );
+
+      // Add icons and context values
+      item.iconPath = new vscode.ThemeIcon(node.name.includes('(dev)') ? 'tools' : 'package');
+      item.contextValue = 'dependency';
+
+      // Add command to show details when clicked
+      item.command = {
+        command: 'neuroforge.viewDependencyDetails',
+        title: 'View Details',
+        arguments: [node.name.replace(' (dev)', '')],
+      };
+
+      return item;
+    });
   }
-}
 
-class DependencyTreeItem extends vscode.TreeItem {
-  constructor(
-    public readonly node: DependencyNode,
-    public readonly collapsibleState: vscode.TreeItemCollapsibleState
-  ) {
-    super(node.name, collapsibleState);
-    this.tooltip = `${node.name}@${node.version}`;
-    this.description = node.version;
+  async getParent(_element: DependencyTreeItem): Promise<DependencyTreeItem | null> {
+    // Implement if you need to support 'reveal' functionality
+    return null;
+  }
 
-    this.iconPath = new vscode.ThemeIcon('package');
-    this.contextValue = 'dependency';
-
-    this.command = {
-      command: 'neuroforge.viewDependencyDetails',
-      title: 'View Details',
-      arguments: [node.name],
-    };
+  async getDependencyAnalysis(): Promise<string> {
+    const analysis = await this.dependencyAnalyzer.analyzeDependencies();
+    return `
+Dependencies Analysis:
+- Total Dependencies: ${analysis.total}
+- Production Dependencies: ${analysis.production}
+- Development Dependencies: ${analysis.development}
+- Outdated Packages: ${analysis.outdated}
+- Vulnerable Packages: ${analysis.vulnerable}
+    `.trim();
   }
 }
