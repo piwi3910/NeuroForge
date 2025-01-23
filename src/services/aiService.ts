@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 
 export interface AIResponse {
     content: string;
-    type: 'explanation' | 'suggestion' | 'documentation' | 'implementation';
+    type: 'explanation' | 'suggestion' | 'documentation' | 'implementation' | 'test';
     confidence: number;
 }
 
@@ -59,6 +59,39 @@ export class AIService {
     }
 
     /**
+     * Generates test cases for the given code
+     * @param code The code to test
+     * @param context Additional context about the code
+     * @returns AI-generated test cases
+     */
+    public async generateTestCases(code: string, context: any): Promise<string> {
+        // TODO: Implement test case generation
+        const framework = context.framework || 'Jest';
+        
+        return `describe('Generated Tests', () => {
+    test('should work correctly', () => {
+        // TODO: Generated test cases
+        expect(true).toBe(true);
+    });
+});`;
+    }
+
+    /**
+     * Generates code implementation from description
+     * @param description Code description or requirements
+     * @param context Additional context
+     * @returns AI-generated implementation
+     */
+    public async generateImplementation(description: string, context: any): Promise<AIResponse> {
+        // TODO: Implement code generation
+        return {
+            content: '// TODO: Generated implementation',
+            type: 'implementation',
+            confidence: 0.7
+        };
+    }
+
+    /**
      * Configures the AI service settings
      * @param settings Configuration settings to update
      */
@@ -67,5 +100,20 @@ export class AIService {
         Object.entries(settings).forEach(([key, value]) => {
             this.config.update(key, value, true);
         });
+    }
+
+    /**
+     * Analyzes code patterns and provides insights
+     * @param code The code to analyze
+     * @param context Additional context
+     * @returns Analysis results
+     */
+    public async analyzePatterns(code: string, context: any): Promise<AIResponse> {
+        // TODO: Implement pattern analysis
+        return {
+            content: 'Code follows common patterns.',
+            type: 'suggestion',
+            confidence: 0.7
+        };
     }
 }

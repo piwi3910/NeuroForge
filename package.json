@@ -22,7 +22,31 @@
         "command": "neuroforge.explainCode",
         "title": "NeuroForge: Explain Code",
         "category": "NeuroForge",
-        "icon": "$(symbol-keyword)"
+        "icon": "$(lightbulb)"
+      },
+      {
+        "command": "neuroforge.generateDocs",
+        "title": "NeuroForge: Generate Documentation",
+        "category": "NeuroForge",
+        "icon": "$(note)"
+      },
+      {
+        "command": "neuroforge.suggestRefactor",
+        "title": "NeuroForge: Suggest Refactoring",
+        "category": "NeuroForge",
+        "icon": "$(wand)"
+      },
+      {
+        "command": "neuroforge.generateTests",
+        "title": "NeuroForge: Generate Tests",
+        "category": "NeuroForge",
+        "icon": "$(beaker)"
+      },
+      {
+        "command": "neuroforge.showMenu",
+        "title": "NeuroForge: Show Actions Menu",
+        "category": "NeuroForge",
+        "icon": "$(brain)"
       }
     ],
     "configuration": {
@@ -31,7 +55,13 @@
         "neuroforge.aiModel": {
           "type": "string",
           "default": "default",
-          "description": "AI model to use for code analysis and generation"
+          "description": "AI model to use for code analysis and generation",
+          "enum": ["default", "fast", "accurate"],
+          "enumDescriptions": [
+            "Balanced performance and accuracy",
+            "Faster response times with reduced accuracy",
+            "Higher accuracy with longer processing times"
+          ]
         },
         "neuroforge.maxTokens": {
           "type": "number",
@@ -47,23 +77,102 @@
           "type": "boolean",
           "default": true,
           "description": "Enable/disable automatic code suggestions"
+        },
+        "neuroforge.documentationStyle": {
+          "type": "string",
+          "default": "standard",
+          "description": "Documentation style to use",
+          "enum": ["standard", "detailed", "minimal"],
+          "enumDescriptions": [
+            "Standard documentation with essential information",
+            "Detailed documentation with examples and edge cases",
+            "Minimal documentation with basic information only"
+          ]
+        },
+        "neuroforge.testFramework": {
+          "type": "object",
+          "description": "Test framework configurations",
+          "properties": {
+            "javascript": {
+              "type": "string",
+              "default": "jest",
+              "enum": ["jest", "mocha"]
+            },
+            "python": {
+              "type": "string",
+              "default": "pytest",
+              "enum": ["pytest", "unittest"]
+            },
+            "java": {
+              "type": "string",
+              "default": "junit",
+              "enum": ["junit", "testng"]
+            }
+          }
         }
       }
     },
     "menus": {
       "editor/context": [
         {
+          "submenu": "neuroforge.menu",
+          "group": "navigation"
+        }
+      ],
+      "neuroforge.menu": [
+        {
           "command": "neuroforge.explainCode",
-          "when": "editorHasSelection",
-          "group": "NeuroForge@1"
+          "group": "1_analysis"
+        },
+        {
+          "command": "neuroforge.generateDocs",
+          "group": "1_analysis"
+        },
+        {
+          "command": "neuroforge.suggestRefactor",
+          "group": "2_modification"
+        },
+        {
+          "command": "neuroforge.generateTests",
+          "group": "2_modification"
         }
       ]
     },
+    "submenus": [
+      {
+        "id": "neuroforge.menu",
+        "label": "NeuroForge"
+      }
+    ],
     "keybindings": [
       {
         "command": "neuroforge.explainCode",
         "key": "ctrl+shift+e",
         "mac": "cmd+shift+e",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "neuroforge.generateDocs",
+        "key": "ctrl+shift+d",
+        "mac": "cmd+shift+d",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "neuroforge.suggestRefactor",
+        "key": "ctrl+shift+r",
+        "mac": "cmd+shift+r",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "neuroforge.generateTests",
+        "key": "ctrl+shift+t",
+        "mac": "cmd+shift+t",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "neuroforge.showMenu",
+        "key": "ctrl+shift+space",
+        "mac": "cmd+shift+space",
         "when": "editorTextFocus"
       }
     ]
@@ -96,7 +205,9 @@
     "code-analysis",
     "documentation",
     "productivity",
-    "code-generation"
+    "code-generation",
+    "testing",
+    "refactoring"
   ],
   "author": "Your Name",
   "license": "MIT",
