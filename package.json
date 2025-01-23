@@ -22,7 +22,7 @@
   "activationEvents": [
     "*"
   ],
-  "main": "./out/extension.js",
+  "main": "out/extension.js",
   "contributes": {
     "viewsContainers": {
       "activitybar": [
@@ -181,6 +181,9 @@
     "lint-staged": "^15.0.0",
     "prettier": "^3.0.0",
     "typescript": "^5.7.2"
+  },
+  "dependencies": {
+    "@vscode/vsce": "^2.24.0"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx}": [
