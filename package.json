@@ -214,7 +214,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourusername/neuroforge.git"
+    "url": "https://github.com/piwi3910/NeuroForge.git"
   },
   "keywords": [
     "ai",
@@ -226,10 +226,10 @@
     "refactoring",
     "code-conversion"
   ],
-  "author": "Your Name",
+  "author": "Pascal Watteel",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/yourusername/neuroforge/issues"
+    "url": "https://github.com/piwi3910/NeuroForge/issues"
   },
-  "homepage": "https://github.com/yourusername/neuroforge#readme"
+  "homepage": "https://github.com/piwi3910/NeuroForge#readme"
 }
