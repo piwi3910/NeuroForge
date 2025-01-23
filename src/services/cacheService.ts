@@ -3,71 +3,87 @@ interface CacheEntry<T> {
   timestamp: number;
 }
 
-interface CacheOptions {
-  ttl: number; // Time to live in milliseconds
-}
-
 export class CacheService {
-  private cache: Map<string, CacheEntry<unknown>>;
-  private readonly defaultTTL: number;
+  private cache: Map<string, CacheEntry<unknown>> = new Map();
+  private readonly ttl: number;
 
-  constructor(defaultTTL = 3600000) {
-    // Default 1 hour TTL
-    this.cache = new Map();
-    this.defaultTTL = defaultTTL;
+  constructor(ttlInSeconds: number = 3600) {
+    this.ttl = ttlInSeconds * 1000; // Convert to milliseconds
+    this.startCleanupInterval();
   }
 
-  public set<T>(key: string, value: T, options?: CacheOptions): void {
-    const ttl = options?.ttl ?? this.defaultTTL;
+  /**
+   * Store a value in the cache
+   * @param key Cache key
+   * @param value Value to store
+   */
+  set<T>(key: string, value: T): void {
     this.cache.set(key, {
       value,
-      timestamp: Date.now() + ttl,
+      timestamp: Date.now(),
     });
   }
 
-  public get<T>(key: string): T | null {
+  /**
+   * Retrieve a value from the cache
+   * @param key Cache key
+   * @returns The cached value or undefined if not found or expired
+   */
+  get<T>(key: string): T | undefined {
     const entry = this.cache.get(key) as CacheEntry<T> | undefined;
 
     if (!entry) {
-      return null;
+      return undefined;
     }
 
-    if (Date.now() > entry.timestamp) {
+    // Check if entry has expired
+    if (Date.now() - entry.timestamp > this.ttl) {
       this.cache.delete(key);
-      return null;
+      return undefined;
     }
 
     return entry.value;
   }
 
-  public has(key: string): boolean {
-    const entry = this.cache.get(key);
-    if (!entry) {
-      return false;
-    }
-
-    if (Date.now() > entry.timestamp) {
-      this.cache.delete(key);
-      return false;
-    }
-
-    return true;
-  }
-
-  public delete(key: string): void {
+  /**
+   * Remove a value from the cache
+   * @param key Cache key
+   */
+  delete(key: string): void {
     this.cache.delete(key);
   }
 
-  public clear(): void {
-    this.cache.clear();
-  }
-
-  public cleanup(): void {
+  /**
+   * Clear all expired entries from the cache
+   */
+  private cleanup(): void {
     const now = Date.now();
     for (const [key, entry] of this.cache.entries()) {
-      if (now > entry.timestamp) {
+      if (now - entry.timestamp > this.ttl) {
         this.cache.delete(key);
       }
     }
+  }
+
+  /**
+   * Start the automatic cleanup interval
+   */
+  private startCleanupInterval(): void {
+    // Run cleanup every hour
+    setInterval(() => this.cleanup(), 3600000);
+  }
+
+  /**
+   * Clear all entries from the cache
+   */
+  clear(): void {
+    this.cache.clear();
+  }
+
+  /**
+   * Get the number of entries in the cache
+   */
+  get size(): number {
+    return this.cache.size;
   }
 }
