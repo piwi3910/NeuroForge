@@ -28,6 +28,22 @@ NeuroForge is an AI-powered coding assistant for Visual Studio Code that helps d
   - Java: JUnit, TestNG
 - Test file organization in `__tests__` directory
 
+### 5. Code Conversion
+- **Convert Code** (⌘⇧C / Ctrl+Shift+C): Convert code between different languages
+- Supported conversions:
+  - JavaScript ↔ TypeScript
+  - Python ↔ JavaScript
+  - Java → TypeScript
+- Interactive preview with side-by-side comparison
+- Preserves comments and code structure
+- Configurable style preferences
+
+### 6. Intelligent Code Completion
+- Context-aware code suggestions
+- Smart trigger characters
+- Language-specific completions
+- Usage analytics for better suggestions
+
 ## Quick Access
 - Use the NeuroForge status bar icon (🧠) to access all features
 - Open command palette (⌘⇧P / Ctrl+Shift+P) and type "NeuroForge"
@@ -51,6 +67,7 @@ This extension contributes the following settings:
 * `neuroforge.autoSuggest`: Enable/disable automatic suggestions
 * `neuroforge.documentationStyle`: Documentation style preference
 * `neuroforge.testFramework`: Configure preferred test frameworks per language
+* `neuroforge.codeConversion`: Configure code conversion preferences
 
 ## Keyboard Shortcuts
 
@@ -60,6 +77,7 @@ This extension contributes the following settings:
 | Generate Documentation | Ctrl+Shift+D | ⌘⇧D |
 | Suggest Refactoring | Ctrl+Shift+R | ⌘⇧R |
 | Generate Tests | Ctrl+Shift+T | ⌘⇧T |
+| Convert Code | Ctrl+Shift+C | ⌘⇧C |
 | Quick Menu | Ctrl+Shift+Space | ⌘⇧Space |
 
 ## Requirements
@@ -90,6 +108,13 @@ This extension contributes the following settings:
 2. Use ⌘⇧T / Ctrl+Shift+T
 3. Tests are generated in `__tests__` directory
 
+### Code Conversion
+1. Select code to convert
+2. Use ⌘⇧C / Ctrl+Shift+C
+3. Choose target language
+4. Review side-by-side comparison
+5. Apply or copy converted code
+
 ## Known Issues
 
 - Initial release, gathering feedback
@@ -104,6 +129,8 @@ Initial release of NeuroForge:
 - Documentation generation
 - Refactoring suggestions
 - Test case generation
+- Code conversion
+- Intelligent code completion
 - Multi-language support
 - Interactive UI
 

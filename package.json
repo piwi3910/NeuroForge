@@ -43,6 +43,12 @@
         "icon": "$(beaker)"
       },
       {
+        "command": "neuroforge.convertCode",
+        "title": "NeuroForge: Convert Code",
+        "category": "NeuroForge",
+        "icon": "$(sync)"
+      },
+      {
         "command": "neuroforge.showMenu",
         "title": "NeuroForge: Show Actions Menu",
         "category": "NeuroForge",
@@ -109,6 +115,23 @@
               "enum": ["junit", "testng"]
             }
           }
+        },
+        "neuroforge.codeConversion": {
+          "type": "object",
+          "description": "Code conversion preferences",
+          "properties": {
+            "preserveComments": {
+              "type": "boolean",
+              "default": true,
+              "description": "Preserve comments during code conversion"
+            },
+            "stylePreference": {
+              "type": "string",
+              "default": "modern",
+              "enum": ["modern", "classic"],
+              "description": "Code style preference for converted code"
+            }
+          }
         }
       }
     },
@@ -134,6 +157,10 @@
         },
         {
           "command": "neuroforge.generateTests",
+          "group": "2_modification"
+        },
+        {
+          "command": "neuroforge.convertCode",
           "group": "2_modification"
         }
       ]
@@ -167,6 +194,12 @@
         "command": "neuroforge.generateTests",
         "key": "ctrl+shift+t",
         "mac": "cmd+shift+t",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "neuroforge.convertCode",
+        "key": "ctrl+shift+c",
+        "mac": "cmd+shift+c",
         "when": "editorTextFocus"
       },
       {
@@ -207,7 +240,8 @@
     "productivity",
     "code-generation",
     "testing",
-    "refactoring"
+    "refactoring",
+    "code-conversion"
   ],
   "author": "Your Name",
   "license": "MIT",

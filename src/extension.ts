@@ -5,6 +5,7 @@ import { ExplainCodeCommand } from './commands/explainCode';
 import { GenerateDocsCommand } from './commands/generateDocs';
 import { SuggestRefactorCommand } from './commands/suggestRefactor';
 import { GenerateTestsCommand } from './commands/generateTests';
+import { ConvertCodeCommand } from './commands/convertCode';
 import { CompletionProvider } from './services/completionProvider';
 import { TelemetryReporter } from './services/telemetryReporter';
 
@@ -22,12 +23,14 @@ export function activate(context: vscode.ExtensionContext) {
     const generateDocs = new GenerateDocsCommand(languageService, aiService);
     const suggestRefactor = new SuggestRefactorCommand(languageService, aiService);
     const generateTests = new GenerateTestsCommand(languageService, aiService);
+    const convertCode = new ConvertCodeCommand(languageService, aiService);
 
     // Register all commands
     explainCode.register(context);
     generateDocs.register(context);
     suggestRefactor.register(context);
     generateTests.register(context);
+    convertCode.register(context);
 
     // Register completion provider
     const completionProvider = new CompletionProvider(aiService, languageService);
@@ -68,7 +71,8 @@ export function activate(context: vscode.ExtensionContext) {
             { label: "$(lightbulb) Explain Code", command: 'neuroforge.explainCode' },
             { label: "$(note) Generate Documentation", command: 'neuroforge.generateDocs' },
             { label: "$(wand) Suggest Refactoring", command: 'neuroforge.suggestRefactor' },
-            { label: "$(beaker) Generate Tests", command: 'neuroforge.generateTests' }
+            { label: "$(beaker) Generate Tests", command: 'neuroforge.generateTests' },
+            { label: "$(sync) Convert Code", command: 'neuroforge.convertCode' }
         ];
 
         const selected = await vscode.window.showQuickPick(actions, {
@@ -112,7 +116,8 @@ export function activate(context: vscode.ExtensionContext) {
                     new vscode.CodeAction('NeuroForge: Explain Code', vscode.CodeActionKind.QuickFix),
                     new vscode.CodeAction('NeuroForge: Generate Documentation', vscode.CodeActionKind.QuickFix),
                     new vscode.CodeAction('NeuroForge: Suggest Refactoring', vscode.CodeActionKind.QuickFix),
-                    new vscode.CodeAction('NeuroForge: Generate Tests', vscode.CodeActionKind.QuickFix)
+                    new vscode.CodeAction('NeuroForge: Generate Tests', vscode.CodeActionKind.QuickFix),
+                    new vscode.CodeAction('NeuroForge: Convert Code', vscode.CodeActionKind.QuickFix)
                 ];
 
                 actions.forEach(action => {

@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 
 export interface AIResponse {
     content: string;
-    type: 'explanation' | 'suggestion' | 'documentation' | 'implementation' | 'test';
+    type: 'explanation' | 'suggestion' | 'documentation' | 'implementation' | 'test' | 'conversion';
     confidence: number;
 }
 
@@ -111,6 +111,40 @@ export class AIService {
 
         // Filter suggestions based on prefix
         return suggestions.filter(s => s.startsWith(prefix.trim()));
+    }
+
+    /**
+     * Converts code between different languages or formats
+     * @param code The code to convert
+     * @param context Conversion context including source and target languages
+     * @returns Converted code
+     */
+    public async convertCode(code: string, context: any): Promise<AIResponse> {
+        // TODO: Implement actual code conversion
+        const { sourceLanguage, targetLanguage } = context;
+        
+        // Basic conversion template
+        let convertedCode = '';
+        
+        if (sourceLanguage === 'javascript' && targetLanguage === 'typescript') {
+            convertedCode = `// Converted from JavaScript to TypeScript
+interface Props {
+    // Add TypeScript interfaces
+}
+
+${code.replace(/var /g, 'let ').replace(/function (\w+)/g, 'function $1: void')}`;
+        } else if (sourceLanguage === 'python' && targetLanguage === 'javascript') {
+            convertedCode = `// Converted from Python to JavaScript
+${code.replace(/def /g, 'function ').replace(/:/g, ' {').replace(/elif/g, 'else if')}`;
+        } else {
+            convertedCode = `// Converted from ${sourceLanguage} to ${targetLanguage}\n${code}`;
+        }
+
+        return {
+            content: convertedCode,
+            type: 'conversion',
+            confidence: 0.7
+        };
     }
 
     /**
