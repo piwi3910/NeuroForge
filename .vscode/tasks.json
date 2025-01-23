@@ -7,11 +7,15 @@
       "problemMatcher": "$tsc-watch",
       "isBackground": true,
       "presentation": {
-        "reveal": "never"
+        "reveal": "never",
+        "panel": "dedicated"
       },
       "group": {
         "kind": "build",
         "isDefault": true
+      },
+      "runOptions": {
+        "runOn": "folderOpen"
       }
     },
     {

@@ -7,7 +7,10 @@
       "request": "launch",
       "args": ["--extensionDevelopmentPath=${workspaceFolder}", "--disable-extensions"],
       "outFiles": ["${workspaceFolder}/out/**/*.js"],
-      "preLaunchTask": "${defaultBuildTask}"
+      "preLaunchTask": "npm: watch",
+      "env": {
+        "VSCODE_DEBUG_MODE": "true"
+      }
     },
     {
       "name": "Extension Tests",
@@ -18,7 +21,7 @@
         "--extensionTestsPath=${workspaceFolder}/out/test/suite/index"
       ],
       "outFiles": ["${workspaceFolder}/out/**/*.js"],
-      "preLaunchTask": "${defaultBuildTask}"
+      "preLaunchTask": "npm: watch"
     }
   ]
 }
