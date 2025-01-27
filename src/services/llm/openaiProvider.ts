@@ -56,20 +56,7 @@ export class OpenAIProvider implements LLMProvider {
 
   public get settings(): LLMProviderSettings[] {
     // Get the current model options, or use defaults if not yet loaded
-    const options = this.modelOptions || [
-      {
-        label: 'GPT-4 Turbo',
-        value: 'gpt-4-turbo-preview',
-      },
-      {
-        label: 'GPT-4',
-        value: 'gpt-4',
-      },
-      {
-        label: 'GPT-3.5 Turbo',
-        value: 'gpt-3.5-turbo',
-      },
-    ];
+    const options = this.modelOptions || [];
 
     return [
       {
@@ -101,7 +88,7 @@ export class OpenAIProvider implements LLMProvider {
         description: 'The GPT model to use',
         required: true,
         options,
-        default: options[0]?.value || 'gpt-4-turbo-preview',
+        default: options[0]?.value,
       },
       {
         key: 'maxTokens',
@@ -130,32 +117,6 @@ export class OpenAIProvider implements LLMProvider {
     ];
   }
 
-  private getDefaultModels(): LLMModel[] {
-    return [
-      {
-        id: 'gpt-4-turbo-preview',
-        name: 'GPT-4 Turbo',
-        description: 'Most capable GPT-4 model, optimized for speed',
-        contextLength: 128000,
-        available: true,
-      },
-      {
-        id: 'gpt-4',
-        name: 'GPT-4',
-        description: 'Most capable GPT-4 model',
-        contextLength: 8192,
-        available: true,
-      },
-      {
-        id: 'gpt-3.5-turbo',
-        name: 'GPT-3.5 Turbo',
-        description: 'Most capable GPT-3.5 model optimized for chat',
-        contextLength: 16385,
-        available: true,
-      },
-    ];
-  }
-
   public async getModels(): Promise<LLMModel[]> {
     // Return cached models if available
     if (this.modelList) {
@@ -167,9 +128,8 @@ export class OpenAIProvider implements LLMProvider {
     const apiUrl = config.get<string>('apiUrl');
     const organization = config.get<string>('organization');
 
-    // Return default models if API key is not configured
     if (!apiKey) {
-      return this.getDefaultModels();
+      throw new Error('OpenAI API key not configured');
     }
 
     try {
@@ -201,9 +161,12 @@ export class OpenAIProvider implements LLMProvider {
           id: model.id,
           name: this.formatModelName(model.id),
           description: `OpenAI ${this.formatModelName(model.id)} model`,
+          // Get context length from model ID (e.g., gpt-3.5-turbo-16k has 16k context)
           contextLength: this.getContextLength(model.id),
           available: true,
-        }));
+        }))
+        // Sort by newest first (based on model ID)
+        .sort((a, b) => b.id.localeCompare(a.id));
 
       // Update model options for settings
       this.modelOptions = models.map(model => ({
@@ -217,9 +180,7 @@ export class OpenAIProvider implements LLMProvider {
       this.outputChannel.appendLine(
         `OpenAI API error: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
-
-      // Fallback to default models if API call fails
-      return this.getDefaultModels();
+      throw error;
     }
   }
 
@@ -323,18 +284,18 @@ export class OpenAIProvider implements LLMProvider {
   }
 
   private getContextLength(modelId: string): number {
-    switch (modelId) {
-      case 'gpt-4-turbo-preview':
-        return 128000;
-      case 'gpt-4':
-      case 'gpt-4-0314':
-      case 'gpt-4-0613':
-        return 8192;
-      case 'gpt-3.5-turbo':
-      case 'gpt-3.5-turbo-16k':
-        return 16385;
-      default:
-        return 4096;
+    // Extract context length from model ID if available (e.g., gpt-3.5-turbo-16k)
+    const match = modelId.match(/(\d+)k/);
+    if (match) {
+      return parseInt(match[1], 10) * 1024;
     }
+
+    // Use known context lengths for specific models
+    if (modelId.includes('turbo-preview')) {
+      return 128 * 1024; // 128k tokens
+    }
+
+    // Default context length for unknown models
+    return 4096;
   }
 }

@@ -47,25 +47,8 @@ export class AnthropicProvider implements LLMProvider {
   }
 
   public get settings(): LLMProviderSettings[] {
-    // Get the current model options, or use defaults if not yet loaded
-    const options = this.modelOptions || [
-      {
-        label: 'Claude 3 Opus',
-        value: 'claude-3-opus-20240229',
-      },
-      {
-        label: 'Claude 3 Sonnet',
-        value: 'claude-3-sonnet-20240229',
-      },
-      {
-        label: 'Claude 2.1',
-        value: 'claude-2.1',
-      },
-      {
-        label: 'Claude 2.0',
-        value: 'claude-2.0',
-      },
-    ];
+    // Get the current model options, or use empty array if not yet loaded
+    const options = this.modelOptions || [];
 
     return [
       {
@@ -90,7 +73,7 @@ export class AnthropicProvider implements LLMProvider {
         description: 'The Claude model to use',
         required: true,
         options,
-        default: options[0]?.value || 'claude-3-opus-20240229',
+        default: options[0]?.value,
       },
       {
         key: 'maxTokens',
@@ -119,39 +102,6 @@ export class AnthropicProvider implements LLMProvider {
     ];
   }
 
-  private getDefaultModels(): LLMModel[] {
-    return [
-      {
-        id: 'claude-3-opus-20240229',
-        name: 'Claude 3 Opus',
-        description: 'Most capable model for highly complex tasks',
-        contextLength: 32768,
-        available: true,
-      },
-      {
-        id: 'claude-3-sonnet-20240229',
-        name: 'Claude 3 Sonnet',
-        description: 'Ideal balance of intelligence and speed',
-        contextLength: 32768,
-        available: true,
-      },
-      {
-        id: 'claude-2.1',
-        name: 'Claude 2.1',
-        description: 'Previous generation model with strong capabilities',
-        contextLength: 16384,
-        available: true,
-      },
-      {
-        id: 'claude-2.0',
-        name: 'Claude 2.0',
-        description: 'Legacy model for basic tasks',
-        contextLength: 16384,
-        available: true,
-      },
-    ];
-  }
-
   public async getModels(): Promise<LLMModel[]> {
     // Return cached models if available
     if (this.modelList) {
@@ -162,9 +112,8 @@ export class AnthropicProvider implements LLMProvider {
     const apiKey = config.get<string>('apiKey');
     const apiUrl = config.get<string>('apiUrl');
 
-    // Return default models if API key is not configured
     if (!apiKey) {
-      return this.getDefaultModels();
+      throw new Error('Anthropic API key not configured');
     }
 
     try {
@@ -191,9 +140,12 @@ export class AnthropicProvider implements LLMProvider {
           id: model.id,
           name: model.display_name,
           description: `Anthropic ${model.display_name} model`,
+          // Get context length from model ID (e.g., claude-3-opus-32k has 32k context)
           contextLength: this.getContextLength(model.id),
           available: true,
-        }));
+        }))
+        // Sort by newest first (based on created_at)
+        .sort((a, b) => b.id.localeCompare(a.id));
 
       // Update model options for settings
       this.modelOptions = models.map(model => ({
@@ -207,9 +159,7 @@ export class AnthropicProvider implements LLMProvider {
       this.outputChannel.appendLine(
         `Anthropic API error: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
-
-      // Fallback to default models if API call fails
-      return this.getDefaultModels();
+      throw error;
     }
   }
 
@@ -300,15 +250,20 @@ export class AnthropicProvider implements LLMProvider {
   }
 
   private getContextLength(modelId: string): number {
-    switch (modelId) {
-      case 'claude-3-opus-20240229':
-      case 'claude-3-sonnet-20240229':
-        return 32768;
-      case 'claude-2.1':
-      case 'claude-2.0':
-        return 16384;
-      default:
-        return 8192;
+    // Extract context length from model ID if available (e.g., claude-3-opus-32k)
+    const match = modelId.match(/(\d+)k/);
+    if (match) {
+      return parseInt(match[1], 10) * 1024;
     }
+
+    // Use known context lengths for specific model families
+    if (modelId.startsWith('claude-3')) {
+      return 32 * 1024; // 32k tokens for Claude 3 models
+    } else if (modelId.startsWith('claude-2')) {
+      return 16 * 1024; // 16k tokens for Claude 2 models
+    }
+
+    // Default context length for unknown models
+    return 8192;
   }
 }
