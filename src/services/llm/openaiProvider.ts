@@ -1,6 +1,13 @@
 import * as vscode from 'vscode';
 
-import { LLMModel, LLMProvider, LLMProviderSettings, LLMRequest, LLMResponse } from './types';
+import {
+  LLMModel,
+  LLMProvider,
+  LLMProviderSettings,
+  LLMRequest,
+  LLMResponse,
+  LLMStreamCallback,
+} from './types';
 
 interface OpenAIError {
   error: {
@@ -41,6 +48,21 @@ interface OpenAIChatResponse {
   };
 }
 
+interface OpenAIChatStreamChunk {
+  id: string;
+  object: string;
+  created: number;
+  model: string;
+  choices: Array<{
+    index: number;
+    delta: {
+      content?: string;
+      role?: string;
+    };
+    finish_reason: string | null;
+  }>;
+}
+
 export class OpenAIProvider implements LLMProvider {
   public readonly id = 'openai';
   public readonly name = 'OpenAI';
@@ -55,7 +77,7 @@ export class OpenAIProvider implements LLMProvider {
   }
 
   public get settings(): LLMProviderSettings[] {
-    // Get the current model options, or use defaults if not yet loaded
+    // Get the current model options, or use empty array if not yet loaded
     const options = this.modelOptions || [];
 
     return [
@@ -161,7 +183,6 @@ export class OpenAIProvider implements LLMProvider {
           id: model.id,
           name: this.formatModelName(model.id),
           description: `OpenAI ${this.formatModelName(model.id)} model`,
-          // Get context length from model ID (e.g., gpt-3.5-turbo-16k has 16k context)
           contextLength: this.getContextLength(model.id),
           available: true,
         }))
@@ -185,6 +206,10 @@ export class OpenAIProvider implements LLMProvider {
   }
 
   public async generateResponse(request: LLMRequest): Promise<LLMResponse> {
+    if (request.stream) {
+      throw new Error('Use generateStreamingResponse for streaming requests');
+    }
+
     const config = vscode.workspace.getConfiguration('neuroforge.openai');
     const apiKey = config.get<string>('apiKey');
     const apiUrl = config.get<string>('apiUrl');
@@ -216,6 +241,7 @@ export class OpenAIProvider implements LLMProvider {
           messages: request.messages,
           max_tokens: request.maxTokens,
           temperature: request.temperature,
+          stream: false,
         }),
       });
 
@@ -235,6 +261,122 @@ export class OpenAIProvider implements LLMProvider {
           totalTokens: result.usage.total_tokens,
         },
       };
+    } catch (error) {
+      this.outputChannel.appendLine(
+        `OpenAI API error: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+      throw error;
+    }
+  }
+
+  public async generateStreamingResponse(
+    request: LLMRequest,
+    callback: LLMStreamCallback
+  ): Promise<void> {
+    const config = vscode.workspace.getConfiguration('neuroforge.openai');
+    const apiKey = config.get<string>('apiKey');
+    const apiUrl = config.get<string>('apiUrl');
+    const organization = config.get<string>('organization');
+
+    if (!apiKey) {
+      throw new Error('OpenAI API key not configured');
+    }
+
+    try {
+      this.outputChannel.appendLine(
+        `Sending streaming request to OpenAI API: ${JSON.stringify(request, null, 2)}`
+      );
+
+      const headers: Record<string, string> = {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      };
+
+      if (organization) {
+        headers['OpenAI-Organization'] = organization;
+      }
+
+      const response = await fetch(`${apiUrl}/chat/completions`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          model: request.model,
+          messages: request.messages,
+          max_tokens: request.maxTokens,
+          temperature: request.temperature,
+          stream: true,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = (await response.json()) as OpenAIError;
+        throw new Error(`OpenAI API error: ${errorData.error?.message || response.statusText}`);
+      }
+
+      if (!response.body) {
+        throw new Error('Response body is null');
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let model = '';
+      const tokens = {
+        prompt: 0,
+        completion: 0,
+      };
+
+      try {
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            const trimmedLine = line.trim();
+            if (!trimmedLine || trimmedLine === 'data: [DONE]') continue;
+
+            try {
+              const data = JSON.parse(trimmedLine.slice(6)); // Remove 'data: ' prefix
+              const chunk = data as OpenAIChatStreamChunk;
+              model = chunk.model;
+
+              const content = chunk.choices[0].delta.content || '';
+              const isLast = chunk.choices[0].finish_reason !== null;
+
+              if (isLast) {
+                // Final chunk
+                callback({
+                  content,
+                  done: true,
+                  model,
+                  usage: {
+                    promptTokens: tokens.prompt,
+                    completionTokens: tokens.completion,
+                    totalTokens: tokens.prompt + tokens.completion,
+                  },
+                });
+              } else {
+                // Intermediate chunk
+                callback({
+                  content,
+                  done: false,
+                });
+              }
+            } catch (error) {
+              this.outputChannel.appendLine(
+                `Error parsing chunk: ${error instanceof Error ? error.message : 'Unknown error'}`
+              );
+              continue;
+            }
+          }
+        }
+      } finally {
+        reader.releaseLock();
+      }
     } catch (error) {
       this.outputChannel.appendLine(
         `OpenAI API error: ${error instanceof Error ? error.message : 'Unknown error'}`

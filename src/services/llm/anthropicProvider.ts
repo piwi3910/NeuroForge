@@ -1,6 +1,13 @@
 import * as vscode from 'vscode';
 
-import { LLMModel, LLMProvider, LLMProviderSettings, LLMRequest, LLMResponse } from './types';
+import {
+  LLMModel,
+  LLMProvider,
+  LLMProviderSettings,
+  LLMRequest,
+  LLMResponse,
+  LLMStreamCallback,
+} from './types';
 
 interface AnthropicError {
   error: {
@@ -19,6 +26,31 @@ interface AnthropicResponse {
   usage: {
     input_tokens: number;
     output_tokens: number;
+  };
+}
+
+interface AnthropicStreamChunk {
+  type:
+    | 'message_start'
+    | 'content_block_start'
+    | 'content_block_delta'
+    | 'message_delta'
+    | 'message_stop';
+  message?: {
+    id: string;
+    model: string;
+    content: Array<{
+      type: 'text';
+      text: string;
+    }>;
+    usage?: {
+      input_tokens: number;
+      output_tokens: number;
+    };
+  };
+  delta?: {
+    type: 'text';
+    text: string;
   };
 }
 
@@ -140,7 +172,6 @@ export class AnthropicProvider implements LLMProvider {
           id: model.id,
           name: model.display_name,
           description: `Anthropic ${model.display_name} model`,
-          // Get context length from model ID (e.g., claude-3-opus-32k has 32k context)
           contextLength: this.getContextLength(model.id),
           available: true,
         }))
@@ -164,6 +195,10 @@ export class AnthropicProvider implements LLMProvider {
   }
 
   public async generateResponse(request: LLMRequest): Promise<LLMResponse> {
+    if (request.stream) {
+      throw new Error('Use generateStreamingResponse for streaming requests');
+    }
+
     const config = vscode.workspace.getConfiguration('neuroforge.anthropic');
     const apiKey = config.get<string>('apiKey');
     const apiUrl = config.get<string>('apiUrl');
@@ -192,6 +227,7 @@ export class AnthropicProvider implements LLMProvider {
           })),
           max_tokens: request.maxTokens,
           temperature: request.temperature,
+          stream: false,
         }),
       });
 
@@ -211,6 +247,132 @@ export class AnthropicProvider implements LLMProvider {
           totalTokens: result.usage.input_tokens + result.usage.output_tokens,
         },
       };
+    } catch (error) {
+      this.outputChannel.appendLine(
+        `Anthropic API error: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+      throw error;
+    }
+  }
+
+  public async generateStreamingResponse(
+    request: LLMRequest,
+    callback: LLMStreamCallback
+  ): Promise<void> {
+    const config = vscode.workspace.getConfiguration('neuroforge.anthropic');
+    const apiKey = config.get<string>('apiKey');
+    const apiUrl = config.get<string>('apiUrl');
+
+    if (!apiKey) {
+      throw new Error('Anthropic API key not configured');
+    }
+
+    try {
+      this.outputChannel.appendLine(
+        `Sending streaming request to Anthropic API: ${JSON.stringify(request, null, 2)}`
+      );
+
+      const response = await fetch(`${apiUrl}/messages`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model: request.model,
+          messages: request.messages.map(msg => ({
+            role: msg.role === 'user' ? 'user' : 'assistant',
+            content: msg.content,
+          })),
+          max_tokens: request.maxTokens,
+          temperature: request.temperature,
+          stream: true,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = (await response.json()) as AnthropicError;
+        throw new Error(`Anthropic API error: ${errorData.error?.message || response.statusText}`);
+      }
+
+      if (!response.body) {
+        throw new Error('Response body is null');
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let model = '';
+      const tokens = {
+        input: 0,
+        output: 0,
+      };
+
+      try {
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            const trimmedLine = line.trim();
+            if (!trimmedLine || trimmedLine === 'event: done') continue;
+
+            try {
+              const data = JSON.parse(trimmedLine.slice(6)); // Remove 'data: ' prefix
+              const chunk = data as AnthropicStreamChunk;
+
+              switch (chunk.type) {
+                case 'message_start':
+                  if (chunk.message) {
+                    model = chunk.message.model;
+                  }
+                  break;
+
+                case 'content_block_delta':
+                  if (chunk.delta) {
+                    callback({
+                      content: chunk.delta.text,
+                      done: false,
+                    });
+                  }
+                  break;
+
+                case 'message_delta':
+                  if (chunk.message?.usage) {
+                    tokens.input = chunk.message.usage.input_tokens;
+                    tokens.output = chunk.message.usage.output_tokens;
+                  }
+                  break;
+
+                case 'message_stop':
+                  callback({
+                    content: '',
+                    done: true,
+                    model,
+                    usage: {
+                      promptTokens: tokens.input,
+                      completionTokens: tokens.output,
+                      totalTokens: tokens.input + tokens.output,
+                    },
+                  });
+                  break;
+              }
+            } catch (error) {
+              this.outputChannel.appendLine(
+                `Error parsing chunk: ${error instanceof Error ? error.message : 'Unknown error'}`
+              );
+              continue;
+            }
+          }
+        }
+      } finally {
+        reader.releaseLock();
+      }
     } catch (error) {
       this.outputChannel.appendLine(
         `Anthropic API error: ${error instanceof Error ? error.message : 'Unknown error'}`

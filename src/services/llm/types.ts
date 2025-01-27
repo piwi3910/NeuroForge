@@ -74,9 +74,34 @@ export interface LLMRequest {
   temperature?: number;
   /** Maximum tokens to generate */
   maxTokens?: number;
+  /** Whether to stream the response */
+  stream?: boolean;
   /** Additional provider-specific parameters */
   options?: Record<string, unknown>;
 }
+
+/**
+ * Streaming response chunk from an LLM provider
+ */
+export interface LLMStreamChunk {
+  /** The partial text content */
+  content: string;
+  /** Whether this is the final chunk */
+  done: boolean;
+  /** Usage information (only available in final chunk) */
+  usage?: {
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+  };
+  /** Model used for the response (only available in final chunk) */
+  model?: string;
+}
+
+/**
+ * Callback for streaming responses
+ */
+export type LLMStreamCallback = (chunk: LLMStreamChunk) => void;
 
 /**
  * Interface that all LLM providers must implement
@@ -94,6 +119,8 @@ export interface LLMProvider {
   getModels(): Promise<LLMModel[]>;
   /** Generate a response */
   generateResponse(request: LLMRequest): Promise<LLMResponse>;
+  /** Generate a streaming response */
+  generateStreamingResponse(request: LLMRequest, callback: LLMStreamCallback): Promise<void>;
   /** Validate provider configuration */
   validateConfig(config: Record<string, unknown>): Promise<string[]>;
 }
