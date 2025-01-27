@@ -150,21 +150,81 @@
           ],
           "description": "AI provider to use"
         },
-        "neuroforge.apiKey": {
-          "type": "string",
-          "description": "API key for the selected provider"
+        "neuroforge.hasShownWelcome": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether the welcome message has been shown"
         },
-        "neuroforge.maxTokens": {
+        "neuroforge.anthropic.apiKey": {
+          "type": "string",
+          "description": "API key for Anthropic"
+        },
+        "neuroforge.anthropic.apiUrl": {
+          "type": "string",
+          "default": "https://api.anthropic.com/v1",
+          "description": "Anthropic API endpoint URL"
+        },
+        "neuroforge.anthropic.model": {
+          "type": "string",
+          "default": "claude-3-opus-20240229",
+          "enum": [
+            "claude-3-opus-20240229",
+            "claude-3-sonnet-20240229",
+            "claude-2.1",
+            "claude-2.0"
+          ],
+          "description": "Anthropic model to use"
+        },
+        "neuroforge.anthropic.maxTokens": {
           "type": "number",
           "default": 8192,
-          "description": "Maximum number of tokens to use in AI requests"
+          "minimum": 1,
+          "maximum": 32768,
+          "description": "Maximum number of tokens for Anthropic requests"
         },
-        "neuroforge.temperature": {
+        "neuroforge.anthropic.temperature": {
           "type": "number",
           "default": 0.7,
           "minimum": 0,
           "maximum": 1,
-          "description": "Temperature setting for AI responses"
+          "description": "Temperature setting for Anthropic responses"
+        },
+        "neuroforge.openai.apiKey": {
+          "type": "string",
+          "description": "API key for OpenAI"
+        },
+        "neuroforge.openai.apiUrl": {
+          "type": "string",
+          "default": "https://api.openai.com/v1",
+          "description": "OpenAI API endpoint URL"
+        },
+        "neuroforge.openai.organization": {
+          "type": "string",
+          "description": "OpenAI organization ID (optional)"
+        },
+        "neuroforge.openai.model": {
+          "type": "string",
+          "default": "gpt-4-turbo-preview",
+          "enum": [
+            "gpt-4-turbo-preview",
+            "gpt-4",
+            "gpt-3.5-turbo"
+          ],
+          "description": "OpenAI model to use"
+        },
+        "neuroforge.openai.maxTokens": {
+          "type": "number",
+          "default": 4096,
+          "minimum": 1,
+          "maximum": 32768,
+          "description": "Maximum number of tokens for OpenAI requests"
+        },
+        "neuroforge.openai.temperature": {
+          "type": "number",
+          "default": 0.7,
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Temperature setting for OpenAI responses"
         }
       }
     }
