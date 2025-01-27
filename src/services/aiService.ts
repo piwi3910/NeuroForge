@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 
 import { getLLMProviderRegistry } from './llm/providerRegistry';
-import { LLMRequest } from './llm/types';
+import { LLMRequest, LLMStreamCallback } from './llm/types';
 
 export class AIService {
   private readonly outputChannel: vscode.OutputChannel;
@@ -44,7 +44,8 @@ export class AIService {
   }
 
   public async chat(
-    messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>
+    messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
+    options?: { stream?: boolean; onChunk?: LLMStreamCallback }
   ): Promise<string> {
     this.ensureInitialized();
 
@@ -71,10 +72,18 @@ export class AIService {
         model,
         maxTokens,
         temperature,
+        stream: options?.stream,
       };
 
-      const response = await provider.generateResponse(request);
-      return response.content;
+      if (options?.stream && options.onChunk) {
+        // Use streaming response
+        await provider.generateStreamingResponse(request, options.onChunk);
+        return ''; // Content is delivered through chunks
+      } else {
+        // Use regular response
+        const response = await provider.generateResponse(request);
+        return response.content;
+      }
     } catch (error) {
       this.outputChannel.appendLine(
         `Error in chat: ${error instanceof Error ? error.message : 'Unknown error'}`

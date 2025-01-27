@@ -2,22 +2,35 @@
 
 All notable changes to the "NeuroForge" extension will be documented in this file.
 
+## [0.0.3] - 2025-01-27
+
+### Added
+
+- Streaming responses in chat view
+  - Real-time display of AI responses
+  - Improved responsiveness and user experience
+  - Token usage tracking in streams
+  - Proper error handling for streams
+- Dynamic model loading from APIs
+  - Automatic model discovery from providers
+  - Better context length detection
+  - Improved model sorting and display
+
+### Fixed
+
+- Provider initialization and error handling
+  - Better handling of missing API keys
+  - Improved settings validation
+  - Better error messages and prompts
+
 ## [0.0.2] - 2025-01-27
 
 ### Fixed
 
 - Improved provider initialization and error handling
-  - Better handling of missing API keys
-  - Graceful initialization of settings view
-  - Improved error messages and configuration prompts
-- Enhanced settings view functionality
-  - Fixed provider switching
-  - Added proper validation messages
-  - Added loading states for provider changes
-- Improved extension activation
-  - Better startup performance with onStartupFinished
-  - Added initialization state tracking
-  - Added better error logging
+  - Return default models when API key is not configured
+  - Move default models to separate method
+  - Add better error handling for API calls
 
 ### Added
 

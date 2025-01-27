@@ -42,6 +42,9 @@
   /** @type {Array<{sender: string, text: string}>} */
   const messageHistory = [];
 
+  /** @type {HTMLDivElement | null} */
+  let currentStreamingMessage = null;
+
   /**
    * Send message to extension
    */
@@ -60,28 +63,63 @@
       value: text,
     });
 
-    // Clear input
+    // Clear input and disable until response is complete
     userInput.value = '';
+    userInput.disabled = true;
+    sendButton.disabled = true;
   }
 
   /**
    * Add message to UI
    * @param {string} sender - The sender of the message (user/assistant/error)
    * @param {string} text - The message text
+   * @param {boolean} [isStreaming=false] - Whether this is a streaming message
    */
-  function addMessageToUI(sender, text) {
+  function addMessageToUI(sender, text, isStreaming = false) {
     console.log(`NeuroForge Chat: Adding message to UI - Sender: ${sender}, Text: ${text}`);
-    const messageDiv = document.createElement('div');
-    messageDiv.className = `message ${sender}-message`;
 
-    // Handle multiline text by replacing newlines with <br> tags
-    messageDiv.innerHTML = text.replace(/\n/g, '<br>');
+    if (isStreaming) {
+      if (!currentStreamingMessage) {
+        // Create new streaming message container
+        currentStreamingMessage = document.createElement('div');
+        currentStreamingMessage.className = `message ${sender}-message`;
+        messagesContainer.appendChild(currentStreamingMessage);
+      }
+      // Append new text to streaming message
+      currentStreamingMessage.innerHTML += text.replace(/\n/g, '<br>');
+    } else {
+      // Regular non-streaming message
+      const messageDiv = document.createElement('div');
+      messageDiv.className = `message ${sender}-message`;
+      messageDiv.innerHTML = text.replace(/\n/g, '<br>');
+      messagesContainer.appendChild(messageDiv);
+    }
 
-    messagesContainer.appendChild(messageDiv);
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
     // Store in history
-    messageHistory.push({ sender, text });
+    if (!isStreaming) {
+      messageHistory.push({ sender, text });
+    }
+  }
+
+  /**
+   * Handle streaming message completion
+   */
+  function completeStreamingMessage() {
+    if (currentStreamingMessage) {
+      // Store the complete message in history
+      messageHistory.push({
+        sender: 'assistant',
+        text: currentStreamingMessage.innerHTML.replace(/<br>/g, '\n'),
+      });
+      currentStreamingMessage = null;
+    }
+
+    // Re-enable input
+    userInput.disabled = false;
+    sendButton.disabled = false;
+    userInput.focus();
   }
 
   // Event listeners
@@ -103,9 +141,21 @@
       case 'response':
       case 'assistant':
         addMessageToUI('assistant', message.value);
+        userInput.disabled = false;
+        sendButton.disabled = false;
+        userInput.focus();
+        break;
+      case 'stream':
+        addMessageToUI('assistant', message.value, true);
+        break;
+      case 'streamEnd':
+        completeStreamingMessage();
         break;
       case 'error':
         addMessageToUI('error', message.value);
+        userInput.disabled = false;
+        sendButton.disabled = false;
+        userInput.focus();
         break;
       default:
         console.warn(`NeuroForge Chat: Unknown message type - ${message.type}`);

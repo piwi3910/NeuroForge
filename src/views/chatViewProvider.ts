@@ -3,6 +3,7 @@ import * as vscode from 'vscode';
 import { AIService } from '../services/aiService';
 import { ConfigurationService } from '../services/configurationService';
 import { getLLMProviderRegistry } from '../services/llm/providerRegistry';
+import { LLMStreamChunk } from '../services/llm/types';
 
 export class ChatViewProvider implements vscode.WebviewViewProvider {
   private readonly configService: ConfigurationService;
@@ -179,23 +180,35 @@ Would you like to configure these settings now?`;
                 return;
               }
 
-              // Process the message using AIService
-              const aiResponse = await this.aiService.chat([
+              // Process the message using AIService with streaming
+              await this.aiService.chat(
+                [
+                  {
+                    role: 'system',
+                    content:
+                      'You are NeuroForge, an AI coding assistant. Help the user with their programming tasks.',
+                  },
+                  {
+                    role: 'user',
+                    content: message.value,
+                  },
+                ],
                 {
-                  role: 'system',
-                  content:
-                    'You are NeuroForge, an AI coding assistant. Help the user with their programming tasks.',
-                },
-                {
-                  role: 'user',
-                  content: message.value,
-                },
-              ]);
-
-              void webview.postMessage({
-                type: 'assistant',
-                value: aiResponse,
-              });
+                  stream: true,
+                  onChunk: (chunk: LLMStreamChunk) => {
+                    if (chunk.done) {
+                      void webview.postMessage({
+                        type: 'streamEnd',
+                      });
+                    } else {
+                      void webview.postMessage({
+                        type: 'stream',
+                        value: chunk.content,
+                      });
+                    }
+                  },
+                }
+              );
             } catch (error) {
               const errorMessage =
                 error instanceof Error ? error.message : 'Unknown error occurred';
