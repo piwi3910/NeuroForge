@@ -16,10 +16,28 @@ export class SettingsViewProvider implements vscode.WebviewViewProvider {
   private readonly configService: ConfigurationService;
   private readonly aiService: AIService;
   private currentWebview?: vscode.Webview;
+  private initialized: boolean = false;
 
   constructor(private readonly extensionUri: vscode.Uri) {
     this.configService = new ConfigurationService();
     this.aiService = new AIService();
+  }
+
+  private async initialize(): Promise<void> {
+    if (this.initialized) {
+      return;
+    }
+
+    try {
+      // Initialize the registry if not already initialized
+      const registry = getLLMProviderRegistry();
+      await registry.initialize();
+      this.initialized = true;
+    } catch (error) {
+      throw new Error(
+        `Failed to initialize settings view: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
   }
 
   public async resolveWebviewView(
@@ -32,83 +50,77 @@ export class SettingsViewProvider implements vscode.WebviewViewProvider {
       localResourceRoots: [this.extensionUri],
     };
 
-    this.currentWebview = webviewView.webview;
-    webviewView.webview.html = await this._getHtmlForWebview(webviewView.webview);
-    this._setWebviewMessageListener(webviewView.webview);
+    try {
+      await this.initialize();
+      this.currentWebview = webviewView.webview;
+      webviewView.webview.html = await this._getHtmlForWebview(webviewView.webview);
+      this._setWebviewMessageListener(webviewView.webview);
 
-    // Handle webview disposal
-    webviewView.onDidDispose(() => {
-      this.currentWebview = undefined;
-    });
+      // Handle webview disposal
+      webviewView.onDidDispose(() => {
+        this.currentWebview = undefined;
+      });
+    } catch (error) {
+      // Show error in webview
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      webviewView.webview.html = this._getErrorHtml(webviewView.webview, errorMessage);
+    }
   }
 
-  private async _getProviderSettingsHtml(
-    provider: string,
-    _webview: vscode.Webview,
-    _nonce: string
-  ): Promise<string> {
-    const registry = getLLMProviderRegistry();
-    const providerInstance = registry.getProvider(provider);
-    const providerConfig = registry.getProviderSettings(provider);
+  private _getErrorHtml(webview: vscode.Webview, errorMessage: string): string {
+    const nonce = this._getNonce();
 
-    return `
-      ${providerInstance.settings
-        .map(
-          setting => `
-        <div class="setting-group">
-          <label class="setting-label" for="${setting.key}">${setting.label}</label>
-          <div class="description">${setting.description}</div>
-          ${
-            setting.type === 'select'
-              ? `
-            <select id="${setting.key}" ${setting.required ? 'required' : ''}>
-              ${setting.options
-                ?.map(
-                  opt => `
-                <option value="${opt.value}" ${providerConfig.get(setting.key) === opt.value ? 'selected' : ''}>
-                  ${opt.label}
-                </option>
-              `
-                )
-                .join('')}
-            </select>
-          `
-              : setting.type === 'password'
-                ? `
-            <input type="password" id="${setting.key}" 
-              value="${providerConfig.get(setting.key) || ''}"
-              ${setting.required ? 'required' : ''}
-            />
-          `
-                : setting.type === 'number'
-                  ? `
-            <input type="number" id="${setting.key}"
-              value="${providerConfig.get(setting.key) || setting.default || ''}"
-              ${setting.validation?.min !== undefined ? `min="${setting.validation.min}"` : ''}
-              ${setting.validation?.max !== undefined ? `max="${setting.validation.max}"` : ''}
-              ${setting.required ? 'required' : ''}
-            />
-          `
-                  : `
-            <input type="text" id="${setting.key}"
-              value="${providerConfig.get(setting.key) || setting.default || ''}"
-              ${setting.required ? 'required' : ''}
-            />
-          `
-          }
-        </div>
-      `
-        )
-        .join('')}
-    `;
+    return `<!DOCTYPE html>
+      <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <meta http-equiv="Content-Security-Policy" content="default-src 'self' ${webview.cspSource}; style-src 'self' ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}';">
+          <style>
+            body {
+              padding: 20px;
+              color: var(--vscode-errorForeground);
+              font-family: var(--vscode-font-family);
+            }
+            .error-container {
+              background-color: var(--vscode-inputValidation-errorBackground);
+              border: 1px solid var(--vscode-inputValidation-errorBorder);
+              padding: 15px;
+              border-radius: 4px;
+            }
+            .error-title {
+              font-weight: bold;
+              margin-bottom: 10px;
+            }
+            .error-message {
+              white-space: pre-wrap;
+              word-break: break-word;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="error-container">
+            <div class="error-title">Error Loading Settings</div>
+            <div class="error-message">${errorMessage}</div>
+          </div>
+        </body>
+      </html>`;
   }
 
   private async _getHtmlForWebview(webview: vscode.Webview): Promise<string> {
+    if (!this.initialized) {
+      throw new Error('Settings view not initialized');
+    }
+
     const nonce = this._getNonce();
     const registry = getLLMProviderRegistry();
     const providers = await this.aiService.getAvailableProviders();
     const config = vscode.workspace.getConfiguration('neuroforge');
     const selectedProviderId = config.get<string>('provider') || registry.getDefaultProvider();
+
+    // Get provider-specific settings
+    const provider = registry.getProvider(selectedProviderId);
+    const providerConfig = registry.getProviderSettings(selectedProviderId);
 
     // Note: Models are fetched but not used in the current implementation
     // They will be used in a future update for model-specific features
@@ -193,7 +205,54 @@ export class SettingsViewProvider implements vscode.WebviewViewProvider {
 
             <div id="loading" class="loading">Loading provider settings...</div>
             <div id="provider-settings">
-              ${await this._getProviderSettingsHtml(selectedProviderId, webview, nonce)}
+              ${provider.settings
+                .map(
+                  setting => `
+                <div class="setting-group">
+                  <label class="setting-label" for="${setting.key}">${setting.label}</label>
+                  <div class="description">${setting.description}</div>
+                  ${
+                    setting.type === 'select'
+                      ? `
+                    <select id="${setting.key}" ${setting.required ? 'required' : ''}>
+                      ${setting.options
+                        ?.map(
+                          opt => `
+                        <option value="${opt.value}" ${providerConfig.get(setting.key) === opt.value ? 'selected' : ''}>
+                          ${opt.label}
+                        </option>
+                      `
+                        )
+                        .join('')}
+                    </select>
+                  `
+                      : setting.type === 'password'
+                        ? `
+                    <input type="password" id="${setting.key}" 
+                      value="${providerConfig.get(setting.key) || ''}"
+                      ${setting.required ? 'required' : ''}
+                    />
+                  `
+                        : setting.type === 'number'
+                          ? `
+                    <input type="number" id="${setting.key}"
+                      value="${providerConfig.get(setting.key) || setting.default || ''}"
+                      ${setting.validation?.min !== undefined ? `min="${setting.validation.min}"` : ''}
+                      ${setting.validation?.max !== undefined ? `max="${setting.validation.max}"` : ''}
+                      ${setting.required ? 'required' : ''}
+                    />
+                  `
+                          : `
+                    <input type="text" id="${setting.key}"
+                      value="${providerConfig.get(setting.key) || setting.default || ''}"
+                      ${setting.required ? 'required' : ''}
+                    />
+                  `
+                  }
+                </div>
+              `
+                )
+                .join('')}
             </div>
 
             <button id="saveButton">Save Settings</button>
@@ -326,16 +385,63 @@ export class SettingsViewProvider implements vscode.WebviewViewProvider {
                 await this.configService.updateSetting('provider', message.value.provider);
 
                 // Get the new provider's settings HTML
-                const newSettingsHtml = await this._getProviderSettingsHtml(
-                  message.value.provider,
-                  webview,
-                  this._getNonce()
-                );
+                const registry = getLLMProviderRegistry();
+                const provider = registry.getProvider(message.value.provider);
+                const providerConfig = registry.getProviderSettings(message.value.provider);
+
+                const settingsHtml = provider.settings
+                  .map(
+                    setting => `
+                  <div class="setting-group">
+                    <label class="setting-label" for="${setting.key}">${setting.label}</label>
+                    <div class="description">${setting.description}</div>
+                    ${
+                      setting.type === 'select'
+                        ? `
+                      <select id="${setting.key}" ${setting.required ? 'required' : ''}>
+                        ${setting.options
+                          ?.map(
+                            opt => `
+                          <option value="${opt.value}" ${providerConfig.get(setting.key) === opt.value ? 'selected' : ''}>
+                            ${opt.label}
+                          </option>
+                        `
+                          )
+                          .join('')}
+                      </select>
+                    `
+                        : setting.type === 'password'
+                          ? `
+                      <input type="password" id="${setting.key}" 
+                        value="${providerConfig.get(setting.key) || ''}"
+                        ${setting.required ? 'required' : ''}
+                      />
+                    `
+                          : setting.type === 'number'
+                            ? `
+                      <input type="number" id="${setting.key}"
+                        value="${providerConfig.get(setting.key) || setting.default || ''}"
+                        ${setting.validation?.min !== undefined ? `min="${setting.validation.min}"` : ''}
+                        ${setting.validation?.max !== undefined ? `max="${setting.validation.max}"` : ''}
+                        ${setting.required ? 'required' : ''}
+                      />
+                    `
+                            : `
+                      <input type="text" id="${setting.key}"
+                        value="${providerConfig.get(setting.key) || setting.default || ''}"
+                        ${setting.required ? 'required' : ''}
+                      />
+                    `
+                    }
+                  </div>
+                `
+                  )
+                  .join('');
 
                 // Send the new settings HTML to the webview
                 void webview.postMessage({
                   type: 'providerSettings',
-                  value: newSettingsHtml,
+                  value: settingsHtml,
                 });
               } catch (error) {
                 void webview.postMessage({
