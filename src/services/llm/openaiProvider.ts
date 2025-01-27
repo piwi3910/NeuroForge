@@ -46,82 +46,88 @@ export class OpenAIProvider implements LLMProvider {
   public readonly name = 'OpenAI';
   public readonly description = "OpenAI's GPT models";
 
-  public readonly settings: LLMProviderSettings[] = [
-    {
-      key: 'apiKey',
-      label: 'API Key',
-      type: 'password',
-      description: 'Your OpenAI API key',
-      required: true,
-    },
-    {
-      key: 'apiUrl',
-      label: 'API URL',
-      type: 'text',
-      default: 'https://api.openai.com/v1',
-      description: 'OpenAI API endpoint URL',
-      required: true,
-    },
-    {
-      key: 'organization',
-      label: 'Organization ID',
-      type: 'text',
-      description: 'Your OpenAI organization ID (optional)',
-      required: false,
-    },
-    {
-      key: 'model',
-      label: 'Model',
-      type: 'select',
-      description: 'The GPT model to use',
-      required: true,
-      options: [
-        {
-          label: 'GPT-4 Turbo',
-          value: 'gpt-4-turbo-preview',
-        },
-        {
-          label: 'GPT-4',
-          value: 'gpt-4',
-        },
-        {
-          label: 'GPT-3.5 Turbo',
-          value: 'gpt-3.5-turbo',
-        },
-      ],
-      default: 'gpt-4-turbo-preview',
-    },
-    {
-      key: 'maxTokens',
-      label: 'Max Tokens',
-      type: 'number',
-      description: 'Maximum number of tokens to generate',
-      default: 4096,
-      required: true,
-      validation: {
-        min: 1,
-        max: 32768,
-      },
-    },
-    {
-      key: 'temperature',
-      label: 'Temperature',
-      type: 'number',
-      description: 'Controls randomness in responses (0.0 to 1.0)',
-      default: 0.7,
-      required: true,
-      validation: {
-        min: 0,
-        max: 1,
-      },
-    },
-  ];
-
   private readonly outputChannel: vscode.OutputChannel;
   private modelList: LLMModel[] | null = null;
+  private modelOptions: Array<{ label: string; value: string }> | null = null;
 
   constructor() {
     this.outputChannel = vscode.window.createOutputChannel('NeuroForge OpenAI');
+  }
+
+  public get settings(): LLMProviderSettings[] {
+    // Get the current model options, or use defaults if not yet loaded
+    const options = this.modelOptions || [
+      {
+        label: 'GPT-4 Turbo',
+        value: 'gpt-4-turbo-preview',
+      },
+      {
+        label: 'GPT-4',
+        value: 'gpt-4',
+      },
+      {
+        label: 'GPT-3.5 Turbo',
+        value: 'gpt-3.5-turbo',
+      },
+    ];
+
+    return [
+      {
+        key: 'apiKey',
+        label: 'API Key',
+        type: 'password',
+        description: 'Your OpenAI API key',
+        required: true,
+      },
+      {
+        key: 'apiUrl',
+        label: 'API URL',
+        type: 'text',
+        default: 'https://api.openai.com/v1',
+        description: 'OpenAI API endpoint URL',
+        required: true,
+      },
+      {
+        key: 'organization',
+        label: 'Organization ID',
+        type: 'text',
+        description: 'Your OpenAI organization ID (optional)',
+        required: false,
+      },
+      {
+        key: 'model',
+        label: 'Model',
+        type: 'select',
+        description: 'The GPT model to use',
+        required: true,
+        options,
+        default: options[0]?.value || 'gpt-4-turbo-preview',
+      },
+      {
+        key: 'maxTokens',
+        label: 'Max Tokens',
+        type: 'number',
+        description: 'Maximum number of tokens to generate',
+        default: 4096,
+        required: true,
+        validation: {
+          min: 1,
+          max: 32768,
+        },
+      },
+      {
+        key: 'temperature',
+        label: 'Temperature',
+        type: 'number',
+        description: 'Controls randomness in responses (0.0 to 1.0)',
+        default: 0.7,
+        required: true,
+        validation: {
+          min: 0,
+          max: 1,
+        },
+      },
+    ];
   }
 
   private getDefaultModels(): LLMModel[] {
@@ -189,7 +195,7 @@ export class OpenAIProvider implements LLMProvider {
       const result = (await response.json()) as OpenAIModelsResponse;
 
       // Filter for GPT models and map to LLMModel format
-      this.modelList = result.data
+      const models = result.data
         .filter(model => model.id.startsWith('gpt-'))
         .map(model => ({
           id: model.id,
@@ -199,7 +205,14 @@ export class OpenAIProvider implements LLMProvider {
           available: true,
         }));
 
-      return this.modelList;
+      // Update model options for settings
+      this.modelOptions = models.map(model => ({
+        label: model.name,
+        value: model.id,
+      }));
+
+      this.modelList = models;
+      return models;
     } catch (error) {
       this.outputChannel.appendLine(
         `OpenAI API error: ${error instanceof Error ? error.message : 'Unknown error'}`
