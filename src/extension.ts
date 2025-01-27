@@ -9,6 +9,7 @@ import { suggestRefactor } from './commands/suggestRefactor';
 import { AIService } from './services/aiService';
 import { CompletionProvider } from './services/completionProvider';
 import { DependencyAnalyzer } from './services/dependencyAnalyzer';
+import { getLLMProviderRegistry } from './services/llm/providerRegistry';
 import { ChatViewProvider } from './views/chatViewProvider';
 import { DependencyTreeProvider } from './views/dependencyTreeProvider';
 import { SettingsViewProvider } from './views/settingsViewProvider';
@@ -21,10 +22,22 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   outputChannel.appendLine('NeuroForge extension is being activated...');
 
   try {
+    // Initialize provider registry first
+    outputChannel.appendLine('Initializing LLM provider registry...');
+    const registry = getLLMProviderRegistry();
+    await registry.initialize();
+
     // Initialize services
     outputChannel.appendLine('Initializing services...');
     const aiService = new AIService();
-    await aiService.initialize();
+    try {
+      await aiService.initialize();
+    } catch (error) {
+      // Log initialization error but don't block activation
+      outputChannel.appendLine(
+        `Warning: AI service initialization error: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
 
     // Set initial context for view visibility
     void vscode.commands.executeCommand('setContext', 'neuroforge.showingSettings', false);
