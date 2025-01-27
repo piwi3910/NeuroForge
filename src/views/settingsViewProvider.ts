@@ -32,6 +32,10 @@ export class SettingsViewProvider implements vscode.WebviewViewProvider {
       // Initialize the registry if not already initialized
       const registry = getLLMProviderRegistry();
       await registry.initialize();
+
+      // Initialize the AI service
+      await this.aiService.initialize();
+
       this.initialized = true;
     } catch (error) {
       throw new Error(
@@ -218,7 +222,9 @@ export class SettingsViewProvider implements vscode.WebviewViewProvider {
                       ${setting.options
                         ?.map(
                           opt => `
-                        <option value="${opt.value}" ${providerConfig.get(setting.key) === opt.value ? 'selected' : ''}>
+                        <option value="${opt.value}" ${
+                          providerConfig.get(setting.key) === opt.value ? 'selected' : ''
+                        }>
                           ${opt.label}
                         </option>
                       `
@@ -402,7 +408,9 @@ export class SettingsViewProvider implements vscode.WebviewViewProvider {
                         ${setting.options
                           ?.map(
                             opt => `
-                          <option value="${opt.value}" ${providerConfig.get(setting.key) === opt.value ? 'selected' : ''}>
+                          <option value="${opt.value}" ${
+                            providerConfig.get(setting.key) === opt.value ? 'selected' : ''
+                          }>
                             ${opt.label}
                           </option>
                         `
