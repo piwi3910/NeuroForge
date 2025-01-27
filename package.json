@@ -2,7 +2,7 @@
   "name": "neuroforge",
   "displayName": "NeuroForge",
   "description": "AI-powered coding assistant for VS Code",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "publisher": "neuroforge",
   "private": true,
   "license": "MIT",
@@ -20,7 +20,7 @@
     "Other"
   ],
   "activationEvents": [
-    "*"
+    "onStartupFinished"
   ],
   "main": "out/extension.js",
   "contributes": {
