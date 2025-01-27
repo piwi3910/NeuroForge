@@ -124,6 +124,32 @@ export class OpenAIProvider implements LLMProvider {
     this.outputChannel = vscode.window.createOutputChannel('NeuroForge OpenAI');
   }
 
+  private getDefaultModels(): LLMModel[] {
+    return [
+      {
+        id: 'gpt-4-turbo-preview',
+        name: 'GPT-4 Turbo',
+        description: 'Most capable GPT-4 model, optimized for speed',
+        contextLength: 128000,
+        available: true,
+      },
+      {
+        id: 'gpt-4',
+        name: 'GPT-4',
+        description: 'Most capable GPT-4 model',
+        contextLength: 8192,
+        available: true,
+      },
+      {
+        id: 'gpt-3.5-turbo',
+        name: 'GPT-3.5 Turbo',
+        description: 'Most capable GPT-3.5 model optimized for chat',
+        contextLength: 16385,
+        available: true,
+      },
+    ];
+  }
+
   public async getModels(): Promise<LLMModel[]> {
     // Return cached models if available
     if (this.modelList) {
@@ -135,8 +161,9 @@ export class OpenAIProvider implements LLMProvider {
     const apiUrl = config.get<string>('apiUrl');
     const organization = config.get<string>('organization');
 
+    // Return default models if API key is not configured
     if (!apiKey) {
-      throw new Error('OpenAI API key not configured');
+      return this.getDefaultModels();
     }
 
     try {
@@ -178,30 +205,8 @@ export class OpenAIProvider implements LLMProvider {
         `OpenAI API error: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
 
-      // Fallback to hardcoded list if API call fails
-      return [
-        {
-          id: 'gpt-4-turbo-preview',
-          name: 'GPT-4 Turbo',
-          description: 'Most capable GPT-4 model, optimized for speed',
-          contextLength: 128000,
-          available: true,
-        },
-        {
-          id: 'gpt-4',
-          name: 'GPT-4',
-          description: 'Most capable GPT-4 model',
-          contextLength: 8192,
-          available: true,
-        },
-        {
-          id: 'gpt-3.5-turbo',
-          name: 'GPT-3.5 Turbo',
-          description: 'Most capable GPT-3.5 model optimized for chat',
-          contextLength: 16385,
-          available: true,
-        },
-      ];
+      // Fallback to default models if API call fails
+      return this.getDefaultModels();
     }
   }
 
