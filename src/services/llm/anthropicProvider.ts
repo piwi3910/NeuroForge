@@ -38,79 +38,85 @@ export class AnthropicProvider implements LLMProvider {
   public readonly name = 'Anthropic';
   public readonly description = "Anthropic's Claude AI models";
 
-  public readonly settings: LLMProviderSettings[] = [
-    {
-      key: 'apiKey',
-      label: 'API Key',
-      type: 'password',
-      description: 'Your Anthropic API key',
-      required: true,
-    },
-    {
-      key: 'apiUrl',
-      label: 'API URL',
-      type: 'text',
-      default: 'https://api.anthropic.com/v1',
-      description: 'Anthropic API endpoint URL',
-      required: true,
-    },
-    {
-      key: 'model',
-      label: 'Model',
-      type: 'select',
-      description: 'The Claude model to use',
-      required: true,
-      options: [
-        {
-          label: 'Claude 3 Opus',
-          value: 'claude-3-opus-20240229',
-        },
-        {
-          label: 'Claude 3 Sonnet',
-          value: 'claude-3-sonnet-20240229',
-        },
-        {
-          label: 'Claude 2.1',
-          value: 'claude-2.1',
-        },
-        {
-          label: 'Claude 2.0',
-          value: 'claude-2.0',
-        },
-      ],
-      default: 'claude-3-opus-20240229',
-    },
-    {
-      key: 'maxTokens',
-      label: 'Max Tokens',
-      type: 'number',
-      description: 'Maximum number of tokens to generate',
-      default: 8192,
-      required: true,
-      validation: {
-        min: 1,
-        max: 32768,
-      },
-    },
-    {
-      key: 'temperature',
-      label: 'Temperature',
-      type: 'number',
-      description: 'Controls randomness in responses (0.0 to 1.0)',
-      default: 0.7,
-      required: true,
-      validation: {
-        min: 0,
-        max: 1,
-      },
-    },
-  ];
-
   private readonly outputChannel: vscode.OutputChannel;
   private modelList: LLMModel[] | null = null;
+  private modelOptions: Array<{ label: string; value: string }> | null = null;
 
   constructor() {
     this.outputChannel = vscode.window.createOutputChannel('NeuroForge Anthropic');
+  }
+
+  public get settings(): LLMProviderSettings[] {
+    // Get the current model options, or use defaults if not yet loaded
+    const options = this.modelOptions || [
+      {
+        label: 'Claude 3 Opus',
+        value: 'claude-3-opus-20240229',
+      },
+      {
+        label: 'Claude 3 Sonnet',
+        value: 'claude-3-sonnet-20240229',
+      },
+      {
+        label: 'Claude 2.1',
+        value: 'claude-2.1',
+      },
+      {
+        label: 'Claude 2.0',
+        value: 'claude-2.0',
+      },
+    ];
+
+    return [
+      {
+        key: 'apiKey',
+        label: 'API Key',
+        type: 'password',
+        description: 'Your Anthropic API key',
+        required: true,
+      },
+      {
+        key: 'apiUrl',
+        label: 'API URL',
+        type: 'text',
+        default: 'https://api.anthropic.com/v1',
+        description: 'Anthropic API endpoint URL',
+        required: true,
+      },
+      {
+        key: 'model',
+        label: 'Model',
+        type: 'select',
+        description: 'The Claude model to use',
+        required: true,
+        options,
+        default: options[0]?.value || 'claude-3-opus-20240229',
+      },
+      {
+        key: 'maxTokens',
+        label: 'Max Tokens',
+        type: 'number',
+        description: 'Maximum number of tokens to generate',
+        default: 8192,
+        required: true,
+        validation: {
+          min: 1,
+          max: 32768,
+        },
+      },
+      {
+        key: 'temperature',
+        label: 'Temperature',
+        type: 'number',
+        description: 'Controls randomness in responses (0.0 to 1.0)',
+        default: 0.7,
+        required: true,
+        validation: {
+          min: 0,
+          max: 1,
+        },
+      },
+    ];
   }
 
   private getDefaultModels(): LLMModel[] {
@@ -179,7 +185,7 @@ export class AnthropicProvider implements LLMProvider {
       const result = (await response.json()) as AnthropicModelsResponse;
 
       // Filter and map models to LLMModel format
-      this.modelList = result.data
+      const models = result.data
         .filter(model => model.id.startsWith('claude-'))
         .map(model => ({
           id: model.id,
@@ -189,7 +195,14 @@ export class AnthropicProvider implements LLMProvider {
           available: true,
         }));
 
-      return this.modelList;
+      // Update model options for settings
+      this.modelOptions = models.map(model => ({
+        label: model.name,
+        value: model.id,
+      }));
+
+      this.modelList = models;
+      return models;
     } catch (error) {
       this.outputChannel.appendLine(
         `Anthropic API error: ${error instanceof Error ? error.message : 'Unknown error'}`
