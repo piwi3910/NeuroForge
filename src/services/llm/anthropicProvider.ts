@@ -22,6 +22,17 @@ interface AnthropicResponse {
   };
 }
 
+interface AnthropicModelsResponse {
+  data: Array<{
+    id: string;
+    display_name: string;
+    created_at: string;
+  }>;
+  has_more: boolean;
+  first_id: string;
+  last_id: string;
+}
+
 export class AnthropicProvider implements LLMProvider {
   public readonly id = 'anthropic';
   public readonly name = 'Anthropic';
@@ -96,13 +107,13 @@ export class AnthropicProvider implements LLMProvider {
   ];
 
   private readonly outputChannel: vscode.OutputChannel;
+  private modelList: LLMModel[] | null = null;
 
   constructor() {
     this.outputChannel = vscode.window.createOutputChannel('NeuroForge Anthropic');
   }
 
-  public async getModels(): Promise<LLMModel[]> {
-    // Anthropic doesn't have a models endpoint, so we return the hardcoded list
+  private getDefaultModels(): LLMModel[] {
     return [
       {
         id: 'claude-3-opus-20240229',
@@ -133,6 +144,60 @@ export class AnthropicProvider implements LLMProvider {
         available: true,
       },
     ];
+  }
+
+  public async getModels(): Promise<LLMModel[]> {
+    // Return cached models if available
+    if (this.modelList) {
+      return this.modelList;
+    }
+
+    const config = vscode.workspace.getConfiguration('neuroforge.anthropic');
+    const apiKey = config.get<string>('apiKey');
+    const apiUrl = config.get<string>('apiUrl');
+
+    // Return default models if API key is not configured
+    if (!apiKey) {
+      return this.getDefaultModels();
+    }
+
+    try {
+      const response = await fetch(`${apiUrl}/models`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = (await response.json()) as AnthropicError;
+        throw new Error(`Anthropic API error: ${errorData.error?.message || response.statusText}`);
+      }
+
+      const result = (await response.json()) as AnthropicModelsResponse;
+
+      // Filter and map models to LLMModel format
+      this.modelList = result.data
+        .filter(model => model.id.startsWith('claude-'))
+        .map(model => ({
+          id: model.id,
+          name: model.display_name,
+          description: `Anthropic ${model.display_name} model`,
+          contextLength: this.getContextLength(model.id),
+          available: true,
+        }));
+
+      return this.modelList;
+    } catch (error) {
+      this.outputChannel.appendLine(
+        `Anthropic API error: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+
+      // Fallback to default models if API call fails
+      return this.getDefaultModels();
+    }
   }
 
   public async generateResponse(request: LLMRequest): Promise<LLMResponse> {
@@ -219,5 +284,18 @@ export class AnthropicProvider implements LLMProvider {
     }
 
     return errors;
+  }
+
+  private getContextLength(modelId: string): number {
+    switch (modelId) {
+      case 'claude-3-opus-20240229':
+      case 'claude-3-sonnet-20240229':
+        return 32768;
+      case 'claude-2.1':
+      case 'claude-2.0':
+        return 16384;
+      default:
+        return 8192;
+    }
   }
 }
