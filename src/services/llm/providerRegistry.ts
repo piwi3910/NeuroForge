@@ -47,7 +47,7 @@ export class LLMProviderRegistry {
         throw new Error(`Provider with ID ${provider.id} is already registered`);
       }
 
-      // Ensure provider configuration section exists
+      // Initialize provider settings if they don't exist
       const config = vscode.workspace.getConfiguration();
       const providerSection = `neuroforge.${provider.id}`;
 
@@ -168,6 +168,7 @@ export class LLMProviderRegistry {
     }
 
     try {
+      // Register all available providers
       await this.registerDefaultProviders();
       this.initialized = true;
       this.outputChannel.appendLine('LLM provider registry initialized successfully');
@@ -187,10 +188,14 @@ export class LLMProviderRegistry {
     const provider = this.getProvider(id);
     const errors = await this.validateProviderConfig(id);
 
+    // Don't throw an error for missing API keys, just log them
     if (errors.length > 0) {
       const errorMessage = `Provider ${provider.name} configuration errors:\n${errors.join('\n')}`;
       this.outputChannel.appendLine(errorMessage);
-      throw new Error(errorMessage);
+      // Only throw if it's not just a missing API key
+      if (!errors.every(err => err.includes('API key'))) {
+        throw new Error(errorMessage);
+      }
     }
 
     this.outputChannel.appendLine(`Initialized LLM provider: ${provider.name} (${provider.id})`);
