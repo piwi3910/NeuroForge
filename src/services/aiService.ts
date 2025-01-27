@@ -5,18 +5,29 @@ import { LLMRequest } from './llm/types';
 
 export class AIService {
   private readonly outputChannel: vscode.OutputChannel;
+  private initialized: boolean = false;
 
   constructor() {
     this.outputChannel = vscode.window.createOutputChannel('NeuroForge AI');
   }
 
   public async initialize(): Promise<void> {
+    if (this.initialized) {
+      return;
+    }
+
     try {
       const registry = getLLMProviderRegistry();
+
+      // Initialize the registry first
+      await registry.initialize();
+
+      // Get and initialize the selected provider
       const config = vscode.workspace.getConfiguration('neuroforge');
       const providerId = config.get<string>('provider') || registry.getDefaultProvider();
-
       await registry.initializeProvider(providerId);
+
+      this.initialized = true;
       this.outputChannel.appendLine(`Initialized AI service with provider: ${providerId}`);
     } catch (error) {
       this.outputChannel.appendLine(
@@ -26,9 +37,17 @@ export class AIService {
     }
   }
 
+  private ensureInitialized(): void {
+    if (!this.initialized) {
+      throw new Error('AI service not initialized. Call initialize() first.');
+    }
+  }
+
   public async chat(
     messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>
   ): Promise<string> {
+    this.ensureInitialized();
+
     try {
       const registry = getLLMProviderRegistry();
       const config = vscode.workspace.getConfiguration('neuroforge');
@@ -138,6 +157,7 @@ export class AIService {
   public async getAvailableProviders(): Promise<
     Array<{ id: string; name: string; description: string }>
   > {
+    this.ensureInitialized();
     const registry = getLLMProviderRegistry();
     return registry.getAllProviders().map(provider => ({
       id: provider.id,
@@ -149,16 +169,19 @@ export class AIService {
   public async getProviderModels(
     providerId: string
   ): Promise<Array<{ label: string; value: string; description: string }>> {
+    this.ensureInitialized();
     const registry = getLLMProviderRegistry();
     return registry.getAvailableModels(providerId);
   }
 
   public async validateProviderConfig(providerId: string): Promise<string[]> {
+    this.ensureInitialized();
     const registry = getLLMProviderRegistry();
     return registry.validateProviderConfig(providerId);
   }
 
   public getProviderSettings(providerId: string): vscode.WorkspaceConfiguration {
+    this.ensureInitialized();
     const registry = getLLMProviderRegistry();
     return registry.getProviderSettings(providerId);
   }

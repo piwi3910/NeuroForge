@@ -8,11 +8,11 @@ export class LLMProviderRegistry {
   private static instance: LLMProviderRegistry;
   private providers: Map<string, LLMProvider>;
   private outputChannel: vscode.OutputChannel;
+  private initialized: boolean = false;
 
   private constructor() {
     this.providers = new Map();
     this.outputChannel = vscode.window.createOutputChannel('NeuroForge LLM');
-    this.registerDefaultProviders();
   }
 
   public static getInstance(): LLMProviderRegistry {
@@ -22,33 +22,58 @@ export class LLMProviderRegistry {
     return LLMProviderRegistry.instance;
   }
 
-  private registerDefaultProviders(): void {
+  private async registerDefaultProviders(): Promise<void> {
     try {
       // Register Anthropic provider
       const anthropicProvider = new AnthropicProvider();
-      this.registerProvider(anthropicProvider);
+      await this.registerProvider(anthropicProvider);
 
       // Register OpenAI provider
       const openaiProvider = new OpenAIProvider();
-      this.registerProvider(openaiProvider);
+      await this.registerProvider(openaiProvider);
 
       this.outputChannel.appendLine('Default LLM providers registered successfully');
     } catch (error) {
       this.outputChannel.appendLine(
         `Error registering default providers: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
+      throw error;
     }
   }
 
-  public registerProvider(provider: LLMProvider): void {
-    if (this.providers.has(provider.id)) {
-      throw new Error(`Provider with ID ${provider.id} is already registered`);
+  public async registerProvider(provider: LLMProvider): Promise<void> {
+    try {
+      if (this.providers.has(provider.id)) {
+        throw new Error(`Provider with ID ${provider.id} is already registered`);
+      }
+
+      // Ensure provider configuration section exists
+      const config = vscode.workspace.getConfiguration();
+      const providerSection = `neuroforge.${provider.id}`;
+
+      // Initialize provider settings if they don't exist
+      for (const setting of provider.settings) {
+        const settingPath = `${providerSection}.${setting.key}`;
+        if (config.get(settingPath) === undefined) {
+          await config.update(settingPath, setting.default, vscode.ConfigurationTarget.Global);
+        }
+      }
+
+      this.providers.set(provider.id, provider);
+      this.outputChannel.appendLine(`Registered LLM provider: ${provider.name} (${provider.id})`);
+    } catch (error) {
+      this.outputChannel.appendLine(
+        `Error registering provider ${provider.name}: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+      throw error;
     }
-    this.providers.set(provider.id, provider);
-    this.outputChannel.appendLine(`Registered LLM provider: ${provider.name} (${provider.id})`);
   }
 
   public getProvider(id: string): LLMProvider {
+    if (!this.initialized) {
+      throw new Error('Provider registry not initialized. Call initialize() first.');
+    }
+
     const provider = this.providers.get(id);
     if (!provider) {
       throw new Error(`Provider with ID ${id} not found`);
@@ -57,19 +82,33 @@ export class LLMProviderRegistry {
   }
 
   public getAllProviders(): LLMProvider[] {
+    if (!this.initialized) {
+      throw new Error('Provider registry not initialized. Call initialize() first.');
+    }
     return Array.from(this.providers.values());
   }
 
   public getProviderIds(): string[] {
+    if (!this.initialized) {
+      throw new Error('Provider registry not initialized. Call initialize() first.');
+    }
     return Array.from(this.providers.keys());
   }
 
   public getProviderSettings(id: string): vscode.WorkspaceConfiguration {
+    if (!this.initialized) {
+      throw new Error('Provider registry not initialized. Call initialize() first.');
+    }
+
     const provider = this.getProvider(id);
     return vscode.workspace.getConfiguration(`neuroforge.${provider.id}`);
   }
 
   public async validateProviderConfig(id: string): Promise<string[]> {
+    if (!this.initialized) {
+      throw new Error('Provider registry not initialized. Call initialize() first.');
+    }
+
     const provider = this.getProvider(id);
     const config = this.getProviderSettings(id);
 
@@ -88,6 +127,10 @@ export class LLMProviderRegistry {
       description: string;
     }>
   > {
+    if (!this.initialized) {
+      throw new Error('Provider registry not initialized. Call initialize() first.');
+    }
+
     const provider = this.getProvider(id);
     try {
       const models = await provider.getModels();
@@ -107,6 +150,10 @@ export class LLMProviderRegistry {
   }
 
   public getDefaultProvider(): string {
+    if (!this.initialized) {
+      throw new Error('Provider registry not initialized. Call initialize() first.');
+    }
+
     // Get the first registered provider as default
     const firstProvider = this.providers.keys().next().value;
     if (!firstProvider) {
@@ -115,12 +162,35 @@ export class LLMProviderRegistry {
     return firstProvider;
   }
 
+  public async initialize(): Promise<void> {
+    if (this.initialized) {
+      return;
+    }
+
+    try {
+      await this.registerDefaultProviders();
+      this.initialized = true;
+      this.outputChannel.appendLine('LLM provider registry initialized successfully');
+    } catch (error) {
+      this.outputChannel.appendLine(
+        `Error initializing provider registry: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+      throw error;
+    }
+  }
+
   public async initializeProvider(id: string): Promise<void> {
+    if (!this.initialized) {
+      throw new Error('Provider registry not initialized. Call initialize() first.');
+    }
+
     const provider = this.getProvider(id);
     const errors = await this.validateProviderConfig(id);
 
     if (errors.length > 0) {
-      throw new Error(`Provider ${provider.name} configuration errors:\n${errors.join('\n')}`);
+      const errorMessage = `Provider ${provider.name} configuration errors:\n${errors.join('\n')}`;
+      this.outputChannel.appendLine(errorMessage);
+      throw new Error(errorMessage);
     }
 
     this.outputChannel.appendLine(`Initialized LLM provider: ${provider.name} (${provider.id})`);
@@ -129,6 +199,7 @@ export class LLMProviderRegistry {
   public dispose(): void {
     this.providers.clear();
     this.outputChannel.dispose();
+    this.initialized = false;
   }
 }
 

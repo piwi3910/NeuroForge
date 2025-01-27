@@ -16,7 +16,7 @@ import { SettingsViewProvider } from './views/settingsViewProvider';
 // Create output channel for logging
 const outputChannel = vscode.window.createOutputChannel('NeuroForge');
 
-export function activate(context: vscode.ExtensionContext): void {
+export async function activate(context: vscode.ExtensionContext): Promise<void> {
   outputChannel.show();
   outputChannel.appendLine('NeuroForge extension is being activated...');
 
@@ -24,6 +24,7 @@ export function activate(context: vscode.ExtensionContext): void {
     // Initialize services
     outputChannel.appendLine('Initializing services...');
     const aiService = new AIService();
+    await aiService.initialize();
 
     // Set initial context for view visibility
     void vscode.commands.executeCommand('setContext', 'neuroforge.showingSettings', false);
